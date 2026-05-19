@@ -143,7 +143,7 @@ class Player(models.Model):
         return self.name
 
 
-class player_Match_Performance(models.Model):
+class Player_Match_Performance(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
@@ -196,6 +196,9 @@ class Fantasy_Team_Player(models.Model):
     is_vice_captain = models.BooleanField(default=False)
     points_earned = models.IntegerField(default=0)
 
+    class Meta:
+        unique_together = ('fantasy_team', 'player')
+
     def __str__(self):
         return f"{self.player.name} in {self.fantasy_team.name}"
 
@@ -229,6 +232,9 @@ class LeagueMember(models.Model):
     joined_at = models.DateTimeField(auto_now_add=True)
     ranking = models.IntegerField(default=0)
     points = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ('league', 'user')
 
     def __str__(self):
         return f"{self.user.name} in {self.league.name}"
