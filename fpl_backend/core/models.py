@@ -1,6 +1,7 @@
 from django.db import models
 import uuid
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.utils.text import slugify
 
 
 class UserManager(BaseUserManager):
@@ -71,7 +72,8 @@ class Sport(models.Model):
 class Tournament(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    sport = models.ForeignKey(Sport, on_delete=models.CASCADE)
+    sport = models.ForeignKey(
+        Sport, on_delete=models.CASCADE, related_name='tournaments')
     name = models.CharField(max_length=100)
     season = models.CharField(max_length=100)
     start_date = models.DateField()
@@ -94,7 +96,8 @@ class Tournament(models.Model):
 class Cricket_Team(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE)
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name='teams')
     name = models.CharField(max_length=100)
     logo_url = models.URLField(blank=True, null=True)
     short_name = models.CharField(max_length=20)
@@ -107,7 +110,8 @@ class Cricket_Team(models.Model):
 class Match(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE)
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name='matches')
     home_team = models.ForeignKey(
         Cricket_Team, on_delete=models.CASCADE, related_name='home_matches')
     away_team = models.ForeignKey(
@@ -129,12 +133,13 @@ class Match(models.Model):
 class Player(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    team = models.ForeignKey(Cricket_Team, on_delete=models.CASCADE)
+    team = models.ForeignKey(
+        Cricket_Team, on_delete=models.CASCADE, related_name='players')
     name = models.CharField(max_length=100)
     role = models.CharField(max_length=20)
     batting_style = models.CharField(max_length=20)
     bowling_style = models.CharField(max_length=20)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    credit_value = models.DecimalField(max_digits=10, decimal_places=2)
     nationality = models.CharField(max_length=50)
     image_url = models.URLField(blank=True, null=True)
     is_available = models.BooleanField(default=True)
@@ -146,8 +151,10 @@ class Player(models.Model):
 class Player_Match_Performance(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    player = models.ForeignKey(Player, on_delete=models.CASCADE)
-    match = models.ForeignKey(Match, on_delete=models.CASCADE)
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name='performances')
+    match = models.ForeignKey(
+        Match, on_delete=models.CASCADE, related_name='performances')
     runs_scored = models.IntegerField(default=0)
     balls_faced = models.IntegerField(default=0)
     fours = models.IntegerField(default=0)
@@ -169,8 +176,10 @@ class Player_Match_Performance(models.Model):
 class Fantasy_Team(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='fantasy_teams')
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name='fantasy_teams')
     name = models.CharField(max_length=100)
     total_points = models.IntegerField(default=0)
     match = models.ForeignKey(
@@ -190,8 +199,10 @@ class Fantasy_Team(models.Model):
 class Fantasy_Team_Player(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    fantasy_team = models.ForeignKey(Fantasy_Team, on_delete=models.CASCADE)
-    player = models.ForeignKey(Player, on_delete=models.CASCADE)
+    fantasy_team = models.ForeignKey(
+        Fantasy_Team, on_delete=models.CASCADE, related_name='team_players')
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name='fantasy_team_players')
     is_captain = models.BooleanField(default=False)
     is_vice_captain = models.BooleanField(default=False)
     points_earned = models.IntegerField(default=0)
@@ -206,8 +217,10 @@ class Fantasy_Team_Player(models.Model):
 class League(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name='leagues')
+    created_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='created_leagues')
     name = models.CharField(max_length=100)
     entry_fee = models.DecimalField(max_digits=10, decimal_places=2)
     prize_pool = models.DecimalField(max_digits=10, decimal_places=2)
@@ -225,8 +238,10 @@ class League(models.Model):
 class LeagueMember(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    league = models.ForeignKey(League, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    league = models.ForeignKey(
+        League, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='league_memberships')
     fantasy_team = models.ForeignKey(
         Fantasy_Team, on_delete=models.SET_NULL, blank=True, null=True)
     joined_at = models.DateTimeField(auto_now_add=True)
@@ -243,7 +258,8 @@ class LeagueMember(models.Model):
 class Transaction(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='transactions')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     type = models.CharField(max_length=20)
     status = models.CharField(max_length=20, choices=[
