@@ -96,3 +96,20 @@ class TransactionSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['id', 'amount', 'type',
                             'status', 'created_at', 'user']
+
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['name', 'email', 'phone_no', 'password']
+        extra_kwargs = {'password': {'write_only': True},
+                        'phone_no': {'required': False}}
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            name=validated_data['name'],
+            email=validated_data['email'],
+            phone_no=validated_data.get('phone_no'),
+            password=validated_data['password']
+        )
+        return user

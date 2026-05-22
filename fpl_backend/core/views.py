@@ -10,7 +10,7 @@ from .models import (
 from .serializers import (
     PlayerSerializer, MatchSerializer, SportSerializer, LeagueSerializer, TournamentSerializer,
     FantasyTeamSerializer, FantasyTeamPlayerSerializer, UserPublicSerializer,
-    CricketTeamSerializer, PlayerMatchPerformanceSerializer, TransactionSerializer
+    CricketTeamSerializer, PlayerMatchPerformanceSerializer, TransactionSerializer, UserRegistrationSerializer
 )
 
 
@@ -370,3 +370,12 @@ class TransactionDetailView(APIView):
         transaction = get_object_or_404(Transaction, pk=pk)
         serializer = TransactionSerializer(transaction)
         return Response(serializer.data)
+
+
+class RegisterView(APIView):
+    def post(self, request):
+        serializer = UserRegistrationSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
