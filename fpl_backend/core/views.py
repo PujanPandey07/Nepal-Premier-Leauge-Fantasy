@@ -12,9 +12,12 @@ from .serializers import (
     FantasyTeamSerializer, FantasyTeamPlayerSerializer, UserPublicSerializer,
     CricketTeamSerializer, PlayerMatchPerformanceSerializer, TransactionSerializer, UserRegistrationSerializer
 )
+from .permissions import IsAdminOrReadOnly, IsOwnerOrAdmin, IsAuthenticated, IsLeagueOwnerOrAdmin
 
 
 class SportListView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request):
         sports = Sport.objects.all()
         serializer = SportSerializer(sports, many=True)
@@ -29,13 +32,17 @@ class SportListView(APIView):
 
 
 class SportDetailView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, pk):
         sport = get_object_or_404(Sport, pk=pk)
+        self.check_object_permissions(request, sport)
         serializer = SportSerializer(sport)
         return Response(serializer.data)
 
     def put(self, request, pk):
         sport = get_object_or_404(Sport, pk=pk)
+        self.check_object_permissions(request, sport)
         serializer = SportSerializer(sport, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -44,11 +51,14 @@ class SportDetailView(APIView):
 
     def delete(self, request, pk):
         sport = get_object_or_404(Sport, pk=pk)
+        self.check_object_permissions(request, sport)
         sport.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TournamentListView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request):
         tournaments = Tournament.objects.all()
         serializer = TournamentSerializer(tournaments, many=True)
@@ -63,13 +73,17 @@ class TournamentListView(APIView):
 
 
 class TournamentDetailView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, pk):
         tournament = get_object_or_404(Tournament, pk=pk)
+        self.check_object_permissions(request, tournament)
         serializer = TournamentSerializer(tournament)
         return Response(serializer.data)
 
     def put(self, request, pk):
         tournament = get_object_or_404(Tournament, pk=pk)
+        self.check_object_permissions(request, tournament)
         serializer = TournamentSerializer(tournament, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -78,11 +92,14 @@ class TournamentDetailView(APIView):
 
     def delete(self, request, pk):
         tournament = get_object_or_404(Tournament, pk=pk)
+        self.check_object_permissions(request, tournament)
         tournament.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CricketTeamListView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request):
         teams = Cricket_Team.objects.all()
         serializer = CricketTeamSerializer(teams, many=True)
@@ -97,13 +114,17 @@ class CricketTeamListView(APIView):
 
 
 class CricketTeamDetailView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, pk):
         team = get_object_or_404(Cricket_Team, pk=pk)
+        self.check_object_permissions(request, team)
         serializer = CricketTeamSerializer(team)
         return Response(serializer.data)
 
     def put(self, request, pk):
         team = get_object_or_404(Cricket_Team, pk=pk)
+        self.check_object_permissions(request, team)
         serializer = CricketTeamSerializer(team, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -112,11 +133,14 @@ class CricketTeamDetailView(APIView):
 
     def delete(self, request, pk):
         team = get_object_or_404(Cricket_Team, pk=pk)
+        self.check_object_permissions(request, team)
         team.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PlayerListView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, tournament_id):
         players = Player.objects.filter(team__tournament=tournament_id)
 
@@ -144,6 +168,7 @@ class PlayerListView(APIView):
         return Response(serializer.data)
 
     def post(self, request, tournament_id):
+
         serializer = PlayerSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -152,13 +177,17 @@ class PlayerListView(APIView):
 
 
 class PlayerDetailView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, pk):
         player = get_object_or_404(Player, pk=pk)
+        self.check_object_permissions(request, player)
         serializer = PlayerSerializer(player)
         return Response(serializer.data)
 
     def patch(self, request, pk):
         player = get_object_or_404(Player, pk=pk)
+        self.check_object_permissions(request, player)
         serializer = PlayerSerializer(player, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -167,6 +196,8 @@ class PlayerDetailView(APIView):
 
 
 class MatchListView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, tournament_id):
         matches = Match.objects.filter(tournament=tournament_id)
 
@@ -186,13 +217,17 @@ class MatchListView(APIView):
 
 
 class MatchDetailView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, pk):
         match = get_object_or_404(Match, pk=pk)
+        self.check_object_permissions(request, match)
         serializer = MatchSerializer(match)
         return Response(serializer.data)
 
     def put(self, request, pk):
         match = get_object_or_404(Match, pk=pk)
+        self.check_object_permissions(request, match)
         serializer = MatchSerializer(match, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -201,11 +236,14 @@ class MatchDetailView(APIView):
 
     def delete(self, request, pk):
         match = get_object_or_404(Match, pk=pk)
+        self.check_object_permissions(request, match)
         match.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class MatchPerformanceView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, match_id):
         performances = Player_Match_Performance.objects.filter(match=match_id)
         serializer = PlayerMatchPerformanceSerializer(performances, many=True)
@@ -213,6 +251,8 @@ class MatchPerformanceView(APIView):
 
 
 class PlayerPerformanceView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, player_id):
         performances = Player_Match_Performance.objects.filter(
             player=player_id)
@@ -221,13 +261,18 @@ class PlayerPerformanceView(APIView):
 
 
 class PlayerMatchPerformanceDetailView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, pk):
         performance = get_object_or_404(Player_Match_Performance, pk=pk)
+        self.check_object_permissions(request, performance)
         serializer = PlayerMatchPerformanceSerializer(performance)
         return Response(serializer.data)
 
 
 class UserListView(APIView):
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request):
         users = User.objects.all()
         serializer = UserPublicSerializer(users, many=True)
@@ -235,13 +280,17 @@ class UserListView(APIView):
 
 
 class UserDetailView(APIView):
+    permission_classes = [IsOwnerOrAdmin]
+
     def get(self, request, pk):
         user = get_object_or_404(User, pk=pk)
+        self.check_object_permissions(request, user)
         serializer = UserPublicSerializer(user)
         return Response(serializer.data)
 
     def patch(self, request, pk):
         user = get_object_or_404(User, pk=pk)
+        self.check_object_permissions(request, user)
         serializer = UserPublicSerializer(
             user, data=request.data, partial=True)
         if serializer.is_valid():
@@ -251,28 +300,34 @@ class UserDetailView(APIView):
 
 
 class FantasyTeamListView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
-        # TODO: filter by request.user after auth is added
-        teams = Fantasy_Team.objects.all()
+        #
+        teams = Fantasy_Team.objects.filter(user=request.user)
         serializer = FantasyTeamSerializer(teams, many=True)
         return Response(serializer.data)
 
     def post(self, request):
         serializer = FantasyTeamSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class FantasyTeamDetailView(APIView):
+    permission_classes = [IsOwnerOrAdmin]
+
     def get(self, request, pk):
         team = get_object_or_404(Fantasy_Team, pk=pk)
+        self.check_object_permissions(request, team)
         serializer = FantasyTeamSerializer(team)
         return Response(serializer.data)
 
     def patch(self, request, pk):
         team = get_object_or_404(Fantasy_Team, pk=pk)
+        self.check_object_permissions(request, team)
         serializer = FantasyTeamSerializer(
             team, data=request.data, partial=True)
         if serializer.is_valid():
@@ -282,11 +337,14 @@ class FantasyTeamDetailView(APIView):
 
     def delete(self, request, pk):
         team = get_object_or_404(Fantasy_Team, pk=pk)
+        self.check_object_permissions(request, team)
         team.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class FantasyTeamPlayerListView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, fantasy_team_id):
         team_players = Fantasy_Team_Player.objects.filter(
             fantasy_team=fantasy_team_id)
@@ -302,13 +360,17 @@ class FantasyTeamPlayerListView(APIView):
 
 
 class FantasyTeamPlayerDetailView(APIView):
+    permission_classes = [IsOwnerOrAdmin]
+
     def get(self, request, pk):
         teamplayer = get_object_or_404(Fantasy_Team_Player, pk=pk)
+        self.check_object_permissions(request, teamplayer)
         serializer = FantasyTeamPlayerSerializer(teamplayer)
         return Response(serializer.data)
 
     def patch(self, request, pk):
         teamplayer = get_object_or_404(Fantasy_Team_Player, pk=pk)
+        self.check_object_permissions(request, teamplayer)
         serializer = FantasyTeamPlayerSerializer(
             teamplayer, data=request.data, partial=True)
         if serializer.is_valid():
@@ -318,11 +380,14 @@ class FantasyTeamPlayerDetailView(APIView):
 
     def delete(self, request, pk):
         teamplayer = get_object_or_404(Fantasy_Team_Player, pk=pk)
+        self.check_object_permissions(request, teamplayer)
         teamplayer.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class LeagueListView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         leagues = League.objects.all()
         serializer = LeagueSerializer(leagues, many=True)
@@ -331,19 +396,23 @@ class LeagueListView(APIView):
     def post(self, request):
         serializer = LeagueSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(created_by=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LeagueDetailView(APIView):
+    permission_classes = [IsLeagueOwnerOrAdmin]
+
     def get(self, request, pk):
         league = get_object_or_404(League, pk=pk)
+        self.check_object_permissions(request, league)
         serializer = LeagueSerializer(league)
         return Response(serializer.data)
 
     def patch(self, request, pk):
         league = get_object_or_404(League, pk=pk)
+        self.check_object_permissions(request, league)
         serializer = LeagueSerializer(
             league, data=request.data, partial=True)
         if serializer.is_valid():
@@ -353,21 +422,27 @@ class LeagueDetailView(APIView):
 
     def delete(self, request, pk):
         league = get_object_or_404(League, pk=pk)
+        self.check_object_permissions(request, league)
         league.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TransactionListView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
-        # TODO: filter by request.user after auth is added
-        transactions = Transaction.objects.all()
+
+        transactions = Transaction.objects.filter(user=request.user)
         serializer = TransactionSerializer(transactions, many=True)
         return Response(serializer.data)
 
 
 class TransactionDetailView(APIView):
+    permission_classes = [IsOwnerOrAdmin]
+
     def get(self, request, pk):
         transaction = get_object_or_404(Transaction, pk=pk)
+        self.check_object_permissions(request, transaction)
         serializer = TransactionSerializer(transaction)
         return Response(serializer.data)
 
