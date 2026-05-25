@@ -76,6 +76,19 @@ class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['points_earned']
 
+    def validate(self, data):
+        if data['is_vice_captain'] and data['is_captain']:
+
+            raise serializers.ValidationError(
+                "A player cannot be both captain and vice-captain.")
+        if data['fantasy_team'].team_players.filter(player=data['player']).exists():
+            raise serializers.ValidationError(
+                "Player already in the fantasy team.")
+        if data['fantasy_team'].team_players.count() >= 11:
+            raise serializers.ValidationError(
+                "Fantasy team cannot have more than 11 players.")
+        return data
+
 
 class LeagueSerializer(serializers.ModelSerializer):
     class Meta:
