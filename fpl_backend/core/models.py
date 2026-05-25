@@ -168,6 +168,7 @@ class Player_Match_Performance(models.Model):
     fantasy_points = models.IntegerField(default=0)
     strike_rate = models.DecimalField(
         max_digits=5, decimal_places=2, default=0.00)
+    maidens = models.IntegerField(default=0)
 
     def __str__(self):
         return f"{self.player.name} - {self.match.home_team.name} vs {self.match.away_team.name}"

@@ -69,5 +69,5 @@ urlpatterns = [
     path('transactions/', TransactionListView.as_view(), name='transaction-list'),
     path('transactions/<uuid:pk>/', TransactionDetailView.as_view(),
          name='transaction-detail'),
-    path('register/', RegisterView.as_view(), name='register'),
+    path('auth/register/', RegisterView.as_view(), name='register'),
 ]
