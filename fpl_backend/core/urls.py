@@ -10,7 +10,7 @@ from .views import (
     FantasyTeamListView, FantasyTeamDetailView,
     FantasyTeamPlayerListView, FantasyTeamPlayerDetailView,
     LeagueListView, LeagueDetailView,
-    TransactionListView, TransactionDetailView, RegisterView
+    TransactionListView, TransactionDetailView, RegisterView, JoinLeagueView
 )
 
 urlpatterns = [
@@ -70,4 +70,5 @@ urlpatterns = [
     path('transactions/<uuid:pk>/', TransactionDetailView.as_view(),
          name='transaction-detail'),
     path('auth/register/', RegisterView.as_view(), name='register'),
+    path('leagues/join/', JoinLeagueView.as_view(), name='league-join'),
 ]

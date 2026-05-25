@@ -4,6 +4,7 @@ from .models import (
     Fantasy_Team, Fantasy_Team_Player, LeagueMember,
     User, Cricket_Team, Player_Match_Performance, Transaction
 )
+import secrets
 
 
 class SportSerializer(serializers.ModelSerializer):
@@ -80,7 +81,11 @@ class LeagueSerializer(serializers.ModelSerializer):
     class Meta:
         model = League
         fields = '__all__'
-        read_only_fields = ['created_at', 'created_by']
+        read_only_fields = ['created_at', 'created_by', 'invite_code']
+
+    def create(self, validated_data):
+        validated_data['invite_code'] = secrets.token_urlsafe(6)
+        return League.objects.create(**validated_data)
 
 
 class LeagueMemberSerializer(serializers.ModelSerializer):

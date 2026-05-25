@@ -5,12 +5,12 @@ from rest_framework import status
 from .models import (
     Player, Match, Sport, League, Tournament,
     Fantasy_Team, Fantasy_Team_Player,
-    User, Cricket_Team, Player_Match_Performance, Transaction
+    User, Cricket_Team, Player_Match_Performance, Transaction, LeagueMember
 )
 from .serializers import (
     PlayerSerializer, MatchSerializer, SportSerializer, LeagueSerializer, TournamentSerializer,
     FantasyTeamSerializer, FantasyTeamPlayerSerializer, UserPublicSerializer,
-    CricketTeamSerializer, PlayerMatchPerformanceSerializer, TransactionSerializer, UserRegistrationSerializer
+    CricketTeamSerializer, PlayerMatchPerformanceSerializer, TransactionSerializer, UserRegistrationSerializer, LeagueMemberSerializer
 )
 from .permissions import IsAdminOrReadOnly, IsOwnerOrAdmin, IsAuthenticated, IsLeagueOwnerOrAdmin
 
@@ -454,3 +454,20 @@ class RegisterView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class JoinLeagueView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        invite_code = request.data.get('invite_code')
+        league = get_object_or_404(League, invite_code=invite_code)
+
+        if LeagueMember.objects.filter(user=request.user, league=league).exists():
+            return Response({'detail': 'Already a member.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if LeagueMember.objects.filter(league=league).count() >= league.max_members:
+            return Response({'detail': 'League is full.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        LeagueMember.objects.create(user=request.user, league=league)
+        return Response({'detail': 'Successfully joined the league.'}, status=status.HTTP_201_CREATED)
