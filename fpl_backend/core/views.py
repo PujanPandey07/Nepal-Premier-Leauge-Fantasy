@@ -13,6 +13,8 @@ from .serializers import (
     CricketTeamSerializer, PlayerMatchPerformanceSerializer, TransactionSerializer, UserRegistrationSerializer, LeagueMemberSerializer
 )
 from .permissions import IsAdminOrReadOnly, IsOwnerOrAdmin, IsAuthenticated, IsLeagueOwnerOrAdmin
+from django.utils import timezone
+from datetime import timedelta
 
 
 class SportListView(APIView):
@@ -309,6 +311,13 @@ class FantasyTeamListView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        match_id = request.data.get('match')
+        match = get_object_or_404(Match, pk=match_id)
+        if timezone.now() > match.match_date - timedelta(minutes=30):
+            return Response(
+                {'detail': 'Deadline passed, team cannot be created.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         serializer = FantasyTeamSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(user=request.user)
@@ -328,6 +337,11 @@ class FantasyTeamDetailView(APIView):
     def patch(self, request, pk):
         team = get_object_or_404(Fantasy_Team, pk=pk)
         self.check_object_permissions(request, team)
+        if timezone.now() > team.match.match_date - timedelta(minutes=30):
+            return Response(
+                {'detail': 'Deadline passed, team cannot be updated.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         serializer = FantasyTeamSerializer(
             team, data=request.data, partial=True)
         if serializer.is_valid():
@@ -352,6 +366,13 @@ class FantasyTeamPlayerListView(APIView):
         return Response(serializer.data)
 
     def post(self, request, fantasy_team_id):
+        team = get_object_or_404(Fantasy_Team, pk=fantasy_team_id)
+        deadline = team.match.match_date - timedelta(minutes=30)
+        if timezone.now() > deadline:
+            return Response(
+                {'detail': 'Deadline passed, players cannot be added.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         serializer = FantasyTeamPlayerSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(fantasy_team_id=fantasy_team_id)
@@ -369,10 +390,18 @@ class FantasyTeamPlayerDetailView(APIView):
         return Response(serializer.data)
 
     def patch(self, request, pk):
-        teamplayer = get_object_or_404(Fantasy_Team_Player, pk=pk)
-        self.check_object_permissions(request, teamplayer)
+        team = get_object_or_404(
+            Fantasy_Team_Player, pk=pk)
+        deadline = team.fantasy_team.match.match_date - timedelta(minutes=30)
+        self.check_object_permissions(request, team)
+        if timezone.now() > deadline:
+            return Response(
+                {'detail': 'Deadline passed, player cannot be updated.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         serializer = FantasyTeamPlayerSerializer(
-            teamplayer, data=request.data, partial=True)
+            team, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)

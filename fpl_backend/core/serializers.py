@@ -81,6 +81,11 @@ class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
 
             raise serializers.ValidationError(
                 "A player cannot be both captain and vice-captain.")
+        if data['fantasy_team'].team_players.filter(
+            player__team=data['player'].team
+        ).count() >= 7:
+            raise serializers.ValidationError(
+                "No more than 7 players from the same team.")
         if data['fantasy_team'].team_players.filter(player=data['player']).exists():
             raise serializers.ValidationError(
                 "Player already in the fantasy team.")
