@@ -1,6 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import Player_Match_Performance, Match, Fantasy_Team, Fantasy_Team_Player, LeagueMember
+from fpl_backend.core import models
 
 
 @receiver(post_save, sender=Player_Match_Performance)
@@ -82,3 +83,13 @@ def update_league_rankings(sender, instance, **kwargs):
         for rank, member in enumerate(members, start=1):
             LeagueMember.objects.filter(
                 pk=member.pk).update(ranking=rank)
+
+
+@receiver(post_save, sender=Fantasy_Team_Player)
+@receiver(post_delete, sender=Fantasy_Team_Player)
+def update_fantasy_team_budget(sender, instance, **kwargs):
+    team = instance.fantasy_team
+    total_cost = team.team_players.aggregate(
+        total=Sum('player__credit_value'))['total'] or 0
+    Fantasy_Team.objects.filter(pk=team.pk).update(
+        remaining_budget=team.tournament.budget_cap - total_cost)

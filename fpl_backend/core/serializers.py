@@ -96,9 +96,7 @@ class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
         if data['fantasy_team'].team_players.filter(player=data['player']).exists():
             raise serializers.ValidationError(
                 "Player already in the fantasy team.")
-        if data['fantasy_team'].team_players.count() >= 11:
-            raise serializers.ValidationError(
-                "Fantasy team cannot have more than 11 players.")
+
         if data['fantasy_team'].team_players.count() == 10:
             existing_roles = list(data['fantasy_team'].team_players.values_list(
                 'player__role', flat=True
@@ -115,7 +113,15 @@ class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
                 if existing_roles.count(role) < min_count:
                     raise serializers.ValidationError(
                         f"Team must have at least {min_count} {role}.")
-               # this is the 11th player being added
+        if data['fantasy_team'].team_players.count() >= 11:
+            raise serializers.ValidationError(
+                "Fantasy team cannot have more than 11 players.")
+        total_cost = data['fantasy_team'].team_players.aggregate(
+            total=Sum('player__credit_value'))['total'] or 0
+        total_cost += data['player'].credit_value
+        if total_cost > data['fantasy_team'].tournament.budget_cap:
+            raise serializers.ValidationError(
+                "Adding this player exceeds the team's budget.")
         return data
 
 
