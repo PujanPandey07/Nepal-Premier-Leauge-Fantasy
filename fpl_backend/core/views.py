@@ -5,7 +5,7 @@ from rest_framework import status
 from .models import (
     Player, Match, Sport, League, Tournament,
     Fantasy_Team, Fantasy_Team_Player,
-    User, Cricket_Team, Player_Match_Performance, Transaction, LeagueMember
+    User, Cricket_Team, Player_Match_Performance, Transaction, LeagueMember, League
 )
 from .serializers import (
     PlayerSerializer, MatchSerializer, SportSerializer, LeagueSerializer, TournamentSerializer,
@@ -497,6 +497,20 @@ class JoinLeagueView(APIView):
 
         if LeagueMember.objects.filter(league=league).count() >= league.max_members:
             return Response({'detail': 'League is full.'}, status=status.HTTP_400_BAD_REQUEST)
+        if league.entry_fee > 0:
+            if request.user.wallet_balance < league.entry_fee:
+                return Response({'detail': 'Insufficient balance to join league.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            request.user.wallet_balance -= league.entry_fee
+            request.user.save()
+
+            Transaction.objects.create(
+                user=request.user,
+                amount=league.entry_fee,
+                type='debit',
+                status='completed',
+                payment_method='wallet'
+            )
 
         LeagueMember.objects.create(user=request.user, league=league)
         return Response({'detail': 'Successfully joined the league.'}, status=status.HTTP_201_CREATED)

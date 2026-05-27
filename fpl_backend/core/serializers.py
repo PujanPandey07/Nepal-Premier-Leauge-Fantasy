@@ -76,6 +76,10 @@ class FantasyTeamSerializer(serializers.ModelSerializer):
                 "You have already created a team for this match.")
         return data
 
+    def create(self, validated_data):
+        validated_data['remaining_budget'] = validated_data['tournament'].budget_cap
+        return Fantasy_Team.objects.create(**validated_data)
+
 
 class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
     class Meta:

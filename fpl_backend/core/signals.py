@@ -1,6 +1,7 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from .models import Player_Match_Performance, Match, Fantasy_Team, Fantasy_Team_Player, LeagueMember
+from .models import League, Player_Match_Performance, Match, Fantasy_Team, Fantasy_Team_Player, LeagueMember, User, Transaction
+from django.db.models import F, Sum
 from fpl_backend.core import models
 
 
@@ -83,6 +84,20 @@ def update_league_rankings(sender, instance, **kwargs):
         for rank, member in enumerate(members, start=1):
             LeagueMember.objects.filter(
                 pk=member.pk).update(ranking=rank)
+        for league in League.objects.filter(tournament=instance.tournament):
+            winner = LeagueMember.objects.filter(
+                league=league, ranking=1).first()
+            if winner:
+                User.objects.filter(pk=winner.user.pk).update(
+                    wallet_balance=F('wallet_balance') + league.prize_pool
+                )
+                Transaction.objects.create(
+                    user=winner.user,
+                    amount=league.prize_pool,
+                    type='credit',
+                    status='completed',
+                    payment_method='wallet'
+                )
 
 
 @receiver(post_save, sender=Fantasy_Team_Player)
