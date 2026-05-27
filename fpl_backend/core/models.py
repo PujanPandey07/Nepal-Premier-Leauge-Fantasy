@@ -87,7 +87,8 @@ class Tournament(models.Model):
     squad_size = models.IntegerField()
     max_substitutions = models.IntegerField()
     max_foreign_players = models.IntegerField()
-    budget_cap = models.DecimalField(max_digits=10, decimal_places=2)
+    budget_cap = models.DecimalField(
+        max_digits=10, decimal_places=2, default=100.00)
 
     def __str__(self):
         return f"{self.name}{self.season}"
@@ -192,6 +193,8 @@ class Fantasy_Team(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deadline = models.DateTimeField()
+    remaining_budget = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0.00)
 
     def __str__(self):
         return f"{self.name} ({self.user.name})"

@@ -69,6 +69,13 @@ class FantasyTeamSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'total_points',
                             'created_at', 'updated_at', 'user']
 
+    def validate(self, data):
+        user = self.context['request'].user
+        if Fantasy_Team.objects.filter(user=user, match=data['match']).exists():
+            raise serializers.ValidationError(
+                "You have already created a team for this match.")
+        return data
+
 
 class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -92,6 +99,23 @@ class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
         if data['fantasy_team'].team_players.count() >= 11:
             raise serializers.ValidationError(
                 "Fantasy team cannot have more than 11 players.")
+        if data['fantasy_team'].team_players.count() == 10:
+            existing_roles = list(data['fantasy_team'].team_players.values_list(
+                'player__role', flat=True
+            ))
+            existing_roles.append(data['player'].role)
+            required_roles = {
+                'Batsman': 4,
+                'Bowler': 4,
+                'All-Rounder': 2,
+                'Wicket-Keeper': 1,
+            }
+
+            for role, min_count in required_roles.items():
+                if existing_roles.count(role) < min_count:
+                    raise serializers.ValidationError(
+                        f"Team must have at least {min_count} {role}.")
+               # this is the 11th player being added
         return data
 
 
