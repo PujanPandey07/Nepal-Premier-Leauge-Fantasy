@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    MatchDetailView, SportListView, SportDetailView,
+    InitiatePaymentView, MatchDetailView, SportListView, SportDetailView,
     TournamentListView, TournamentDetailView,
     CricketTeamListView, CricketTeamDetailView,
     PlayerListView, PlayerDetailView,
@@ -10,7 +10,7 @@ from .views import (
     FantasyTeamListView, FantasyTeamDetailView,
     FantasyTeamPlayerListView, FantasyTeamPlayerDetailView,
     LeagueListView, LeagueDetailView,
-    TransactionListView, TransactionDetailView, RegisterView, JoinLeagueView
+    TransactionListView, TransactionDetailView, RegisterView, JoinLeagueView, VerifyPaymentView
 )
 
 urlpatterns = [
@@ -71,4 +71,7 @@ urlpatterns = [
          name='transaction-detail'),
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('leagues/join/', JoinLeagueView.as_view(), name='league-join'),
+    path('payments/initiate/', InitiatePaymentView.as_view(),
+         name='initiate-payment'),
+    path('payments/verify/', VerifyPaymentView.as_view(), name='verify-payment'),
 ]

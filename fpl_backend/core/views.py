@@ -1,3 +1,5 @@
+from urllib import request, response
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
@@ -15,6 +17,8 @@ from .serializers import (
 from .permissions import IsAdminOrReadOnly, IsOwnerOrAdmin, IsAuthenticated, IsLeagueOwnerOrAdmin
 from django.utils import timezone
 from datetime import timedelta
+from .khalti import initiate_payment, verify_payment
+from django.db.models import F
 
 
 class SportListView(APIView):
@@ -514,3 +518,52 @@ class JoinLeagueView(APIView):
 
         LeagueMember.objects.create(user=request.user, league=league)
         return Response({'detail': 'Successfully joined the league.'}, status=status.HTTP_201_CREATED)
+
+
+class InitiatePaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        amount = request.data.get('amount')
+        if not amount:
+            return Response({'detail': 'Amount required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        transaction = Transaction.objects.create(
+            user=request.user,
+            amount=amount,
+            type='credit',
+            status='pending',
+            payment_method='khalti'
+        )
+
+        return_url = 'http://localhost:8000/api/payments/verify/'
+        response = initiate_payment(
+            amount, transaction.id, request.user, return_url)
+
+        transaction.reference_id = response.get('pidx')
+        transaction.save()
+
+        return Response({'payment_url': response.get('payment_url')})
+
+
+class VerifyPaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        pidx = request.query_params.get('pidx')
+        response = verify_payment(pidx)
+        transaction = get_object_or_404(Transaction, reference_id=pidx)
+        if response.get('status') == 'Completed':
+            transaction.status = 'completed'
+            transaction.reference_id = response.get('pidx')
+            transaction.save()
+
+            User.objects.filter(pk=request.user.pk).update(
+                wallet_balance=F('wallet_balance') + transaction.amount
+            )
+            request.user.save()
+            return Response({'detail': 'Payment verified and wallet updated.'})
+        else:
+            transaction.status = 'failed'
+            transaction.save()
+            return Response({'detail': 'Payment verification failed.'}, status=status.HTTP_400_BAD_REQUEST)

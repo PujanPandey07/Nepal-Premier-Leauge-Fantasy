@@ -2,7 +2,7 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from .models import League, Player_Match_Performance, Match, Fantasy_Team, Fantasy_Team_Player, LeagueMember, User, Transaction
 from django.db.models import F, Sum
-from fpl_backend.core import models
+from core import models
 
 
 @receiver(post_save, sender=Player_Match_Performance)
