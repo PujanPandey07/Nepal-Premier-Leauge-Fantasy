@@ -1,4 +1,4 @@
-from urllib import request, response
+
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -19,6 +19,7 @@ from django.utils import timezone
 from datetime import timedelta
 from .khalti import initiate_payment, verify_payment
 from django.db.models import F
+from .pagination import StandardPagination
 
 
 class SportListView(APIView):
@@ -67,8 +68,11 @@ class TournamentListView(APIView):
 
     def get(self, request):
         tournaments = Tournament.objects.all()
-        serializer = TournamentSerializer(tournaments, many=True)
-        return Response(serializer.data)
+        paginator = StandardPagination()
+        result_page = paginator.paginate_queryset(tournaments, request)
+
+        serializer = TournamentSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         serializer = TournamentSerializer(data=request.data)
@@ -108,8 +112,10 @@ class CricketTeamListView(APIView):
 
     def get(self, request):
         teams = Cricket_Team.objects.all()
-        serializer = CricketTeamSerializer(teams, many=True)
-        return Response(serializer.data)
+        paginator = StandardPagination()
+        result_page = paginator.paginate_queryset(teams, request)
+        serializer = CricketTeamSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         serializer = CricketTeamSerializer(data=request.data)
@@ -169,9 +175,12 @@ class PlayerListView(APIView):
             players = players.filter(credit_value__gte=min_price)
         if max_price:
             players = players.filter(credit_value__lte=max_price)
+        paginator = StandardPagination()
+        result_page = paginator.paginate_queryset(players, request)
 
-        serializer = PlayerSerializer(players, many=True)
-        return Response(serializer.data)
+        serializer = PlayerSerializer(result_page, many=True)
+
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request, tournament_id):
 
@@ -211,8 +220,11 @@ class MatchListView(APIView):
         if status_filter:
             matches = matches.filter(status=status_filter)
 
-        serializer = MatchSerializer(matches, many=True)
-        return Response(serializer.data)
+        paginator = StandardPagination()
+        result_page = paginator.paginate_queryset(matches, request)
+
+        serializer = MatchSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request, tournament_id):
         serializer = MatchSerializer(data=request.data)
@@ -262,8 +274,10 @@ class PlayerPerformanceView(APIView):
     def get(self, request, player_id):
         performances = Player_Match_Performance.objects.filter(
             player=player_id)
-        serializer = PlayerMatchPerformanceSerializer(performances, many=True)
-        return Response(serializer.data)
+        paginator = StandardPagination()
+        result_page = paginator.paginate_queryset(performances, request)
+        serializer = PlayerMatchPerformanceSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class PlayerMatchPerformanceDetailView(APIView):
@@ -281,8 +295,10 @@ class UserListView(APIView):
 
     def get(self, request):
         users = User.objects.all()
-        serializer = UserPublicSerializer(users, many=True)
-        return Response(serializer.data)
+        paginator = StandardPagination()
+        result_page = paginator.paginate_queryset(users, request)
+        serializer = UserPublicSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class UserDetailView(APIView):
@@ -311,8 +327,10 @@ class FantasyTeamListView(APIView):
     def get(self, request):
         #
         teams = Fantasy_Team.objects.filter(user=request.user)
-        serializer = FantasyTeamSerializer(teams, many=True)
-        return Response(serializer.data)
+        paginator = StandardPagination()
+        result_page = paginator.paginate_queryset(teams, request)
+        serializer = FantasyTeamSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         match_id = request.data.get('match')
@@ -423,8 +441,10 @@ class LeagueListView(APIView):
 
     def get(self, request):
         leagues = League.objects.all()
-        serializer = LeagueSerializer(leagues, many=True)
-        return Response(serializer.data)
+        paginator = StandardPagination()
+        result_page = paginator.paginate_queryset(leagues, request)
+        serializer = LeagueSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         serializer = LeagueSerializer(data=request.data)
@@ -466,8 +486,10 @@ class TransactionListView(APIView):
     def get(self, request):
 
         transactions = Transaction.objects.filter(user=request.user)
-        serializer = TransactionSerializer(transactions, many=True)
-        return Response(serializer.data)
+        paginator = StandardPagination()
+        result_page = paginator.paginate_queryset(transactions, request)
+        serializer = TransactionSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class TransactionDetailView(APIView):
