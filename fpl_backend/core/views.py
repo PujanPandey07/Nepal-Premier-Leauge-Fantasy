@@ -68,6 +68,10 @@ class TournamentListView(APIView):
 
     def get(self, request):
         tournaments = Tournament.objects.all()
+        searching = request.query_params.get('search')
+        if searching:
+            tournaments = tournaments.filter(name__icontains=searching)
+
         paginator = StandardPagination()
         result_page = paginator.paginate_queryset(tournaments, request)
 
@@ -112,6 +116,10 @@ class CricketTeamListView(APIView):
 
     def get(self, request):
         teams = Cricket_Team.objects.all()
+        searching = request.query_params.get('search')
+        if searching:
+            teams = teams.filter(name__icontains=searching)
+
         paginator = StandardPagination()
         result_page = paginator.paginate_queryset(teams, request)
         serializer = CricketTeamSerializer(result_page, many=True)
@@ -162,6 +170,9 @@ class PlayerListView(APIView):
         bowling_style = request.query_params.get('bowling_style')
         min_price = request.query_params.get('min_price')
         max_price = request.query_params.get('max_price')
+        search = request.query_params.get('search')
+        if search:
+            players = players.filter(name__icontains=search)
 
         if role:
             players = players.filter(role=role)
@@ -327,6 +338,9 @@ class FantasyTeamListView(APIView):
     def get(self, request):
         #
         teams = Fantasy_Team.objects.filter(user=request.user)
+        searching = request.query_params.get('search')
+        if searching:
+            teams = teams.filter(name__icontains=searching)
         paginator = StandardPagination()
         result_page = paginator.paginate_queryset(teams, request)
         serializer = FantasyTeamSerializer(result_page, many=True)
@@ -441,6 +455,9 @@ class LeagueListView(APIView):
 
     def get(self, request):
         leagues = League.objects.all()
+        searching = request.query_params.get('search')
+        if searching:
+            leagues = leagues.filter(name__icontains=searching)
         paginator = StandardPagination()
         result_page = paginator.paginate_queryset(leagues, request)
         serializer = LeagueSerializer(result_page, many=True)
