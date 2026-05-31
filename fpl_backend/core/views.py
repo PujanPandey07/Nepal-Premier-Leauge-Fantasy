@@ -20,6 +20,11 @@ from datetime import timedelta
 from .khalti import initiate_payment, verify_payment
 from django.db.models import F
 from .pagination import StandardPagination
+# at the top of views.py after imports
+PLAYER_ALLOWED_ORDERINGS = ['credit_value', 'name', '-credit_value', '-name']
+TOURNAMENT_ALLOWED_ORDERINGS = ['name', 'start_date', '-name', '-start_date']
+LEAGUE_ALLOWED_ORDERINGS = ['created_at', 'name', '-created_at', '-name',
+                            'entry_fee', '-entry_fee', 'prize_pool', '-prize_pool']
 
 
 class SportListView(APIView):
@@ -71,6 +76,9 @@ class TournamentListView(APIView):
         searching = request.query_params.get('search')
         if searching:
             tournaments = tournaments.filter(name__icontains=searching)
+        ordering = request.query_params.get('ordering')
+        if ordering and ordering in TOURNAMENT_ALLOWED_ORDERINGS:
+            tournaments = tournaments.order_by(ordering)
 
         paginator = StandardPagination()
         result_page = paginator.paginate_queryset(tournaments, request)
@@ -186,6 +194,9 @@ class PlayerListView(APIView):
             players = players.filter(credit_value__gte=min_price)
         if max_price:
             players = players.filter(credit_value__lte=max_price)
+        ordering = request.query_params.get('ordering')
+        if ordering and ordering in PLAYER_ALLOWED_ORDERINGS:
+            players = players.order_by(ordering)
         paginator = StandardPagination()
         result_page = paginator.paginate_queryset(players, request)
 
@@ -458,6 +469,9 @@ class LeagueListView(APIView):
         searching = request.query_params.get('search')
         if searching:
             leagues = leagues.filter(name__icontains=searching)
+        ordering = request.query_params.get('ordering')
+        if ordering and ordering in LEAGUE_ALLOWED_ORDERINGS:
+            leagues = leagues.order_by(ordering)
         paginator = StandardPagination()
         result_page = paginator.paginate_queryset(leagues, request)
         serializer = LeagueSerializer(result_page, many=True)
