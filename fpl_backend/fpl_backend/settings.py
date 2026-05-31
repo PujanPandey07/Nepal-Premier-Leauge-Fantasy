@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -76,6 +77,12 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'fpl_backend.wsgi.application'
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'NPL Fantasy API',
+    'DESCRIPTION': 'Nepal Premier League Fantasy Cricket API',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
 
 
 # Database
@@ -133,6 +140,7 @@ REST_FRAMEWORK = {
 
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 
 
 }
