@@ -3,6 +3,7 @@ from django.dispatch import receiver
 from .models import League, Player_Match_Performance, Match, Fantasy_Team, Fantasy_Team_Player, LeagueMember, User, Transaction
 from django.db.models import F, Sum
 from core import models
+from decimal import Decimal
 
 
 @receiver(post_save, sender=Player_Match_Performance)
@@ -105,6 +106,7 @@ def update_league_rankings(sender, instance, **kwargs):
 def update_fantasy_team_budget(sender, instance, **kwargs):
     team = instance.fantasy_team
     total_cost = team.team_players.aggregate(
-        total=Sum('player__credit_value'))['total'] or 0
+        total=Sum('player__credit_value'))['total'] or Decimal('0')
+
     Fantasy_Team.objects.filter(pk=team.pk).update(
         remaining_budget=team.tournament.budget_cap - total_cost)

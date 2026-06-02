@@ -360,15 +360,22 @@ class FantasyTeamListView(APIView):
     def post(self, request):
         match_id = request.data.get('match')
         match = get_object_or_404(Match, pk=match_id)
+
         if timezone.now() > match.match_date - timedelta(minutes=30):
             return Response(
                 {'detail': 'Deadline passed, team cannot be created.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        serializer = FantasyTeamSerializer(data=request.data)
+
+        serializer = FantasyTeamSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+
         if serializer.is_valid():
             serializer.save(user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
