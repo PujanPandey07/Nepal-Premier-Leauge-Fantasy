@@ -38,7 +38,7 @@ class SportTest(APITestCase):
 class UserAuthTest(APITestCase):
 
     def test_user_can_register(self):
-        response = self.client.post('/api/auth/register/', {
+        response = self.client.post('/api/register/', {
             'name': 'Test User',
             'email': 'test@test.com',
             'password': 'test123'
@@ -166,7 +166,7 @@ class FantasyTeamTest(APITestCase):
             nationality='Nepali'
         )
         response = self.client.post(
-            f'/api/fantasy-teams/{fantasy_team.id}/players/', {
+            f'/api/fantasy-team-players/', {
                 'fantasy_team': fantasy_team.id,
                 'player': new_player.id
             })
@@ -192,7 +192,7 @@ class FantasyTeamTest(APITestCase):
             nationality='Nepali'
         )
         response = self.client.post(
-            f'/api/fantasy-teams/{fantasy_team.id}/players/', {
+            f'/api/fantasy-team-players/', {
                 'fantasy_team': fantasy_team.id,
                 'player': expensive_player.id
             })

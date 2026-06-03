@@ -1,5 +1,8 @@
 
 
+from decimal import Decimal
+from django.db.models import Sum
+from rest_framework.test import APITestCase
 from rest_framework.views import APIView
 from rest_framework import viewsets
 from rest_framework.response import Response
@@ -11,6 +14,7 @@ from .models import (
     Fantasy_Team, Fantasy_Team_Player,
     User, Cricket_Team, Player_Match_Performance, Transaction, LeagueMember, League
 )
+from rest_framework.decorators import action
 from .serializers import (
     PlayerSerializer, MatchSerializer, SportSerializer, LeagueSerializer, TournamentSerializer,
     FantasyTeamSerializer, FantasyTeamPlayerSerializer, UserPublicSerializer,
@@ -21,12 +25,6 @@ from django.utils import timezone
 from datetime import timedelta
 from .khalti import initiate_payment, verify_payment
 from django.db.models import F
-from .pagination import StandardPagination
-# at the top of views.py after imports
-PLAYER_ALLOWED_ORDERINGS = ['credit_value', 'name', '-credit_value', '-name']
-TOURNAMENT_ALLOWED_ORDERINGS = ['name', 'start_date', '-name', '-start_date']
-LEAGUE_ALLOWED_ORDERINGS = ['created_at', 'name', '-created_at', '-name',
-                            'entry_fee', '-entry_fee', 'prize_pool', '-prize_pool']
 
 
 class SportsView(viewsets.ModelViewSet):
@@ -115,27 +113,7 @@ class LeagueView(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
-
-class TransactionView(viewsets.ModelViewSet):
-    serializer_class = TransactionSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return Transaction.objects.filter(user=self.request.user).order_by('-created_at')
-
-
-class RegisterView(APIView):
-    def post(self, request):
-        serializer = UserRegistrationSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class JoinLeagueView(APIView):
-    permission_classes = [IsAuthenticated]
-
+    @action(detail=False, methods=['post'], url_path='join')
     def post(self, request):
         invite_code = request.data.get('invite_code')
         league = get_object_or_404(League, invite_code=invite_code)
@@ -162,6 +140,23 @@ class JoinLeagueView(APIView):
 
         LeagueMember.objects.create(user=request.user, league=league)
         return Response({'detail': 'Successfully joined the league.'}, status=status.HTTP_201_CREATED)
+
+
+class TransactionView(viewsets.ModelViewSet):
+    serializer_class = TransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Transaction.objects.filter(user=self.request.user).order_by('-created_at')
+
+
+class RegisterView(APIView):
+    def post(self, request):
+        serializer = UserRegistrationSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class InitiatePaymentView(APIView):
