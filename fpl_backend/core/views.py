@@ -25,6 +25,7 @@ from django.utils import timezone
 from datetime import timedelta
 from .khalti import initiate_payment, verify_payment
 from django.db.models import F
+from .filters import PlayerFilter, TournamentFilter, LeagueFilter
 
 
 class SportsView(viewsets.ModelViewSet):
@@ -37,18 +38,27 @@ class TournamentView(viewsets.ModelViewSet):
     queryset = Tournament.objects.all()
     serializer_class = TournamentSerializer
     permission_classes = [IsAdminOrReadOnly]
+    filterset_class = TournamentFilter
+    search_fields = ['name', 'sport__name']
+    ordering_fields = ['start_date', 'end_date']
 
 
 class CricketTeamView(viewsets.ModelViewSet):
     queryset = Cricket_Team.objects.all()
     serializer_class = CricketTeamSerializer
     permission_classes = [IsAdminOrReadOnly]
+    filterset_fields = ['tournament', 'name']
+    search_fields = ['name', 'tournament__name', 'short_name']
+    ordering_fields = ['name']
 
 
 class PlayerView(viewsets.ModelViewSet):
     queryset = Player.objects.all()
     serializer_class = PlayerSerializer
     permission_classes = [IsAdminOrReadOnly]
+    filterset_class = PlayerFilter
+    search_fields = ['name', 'team__name']
+    ordering_fields = ['name', 'credit_value']
     http_method_names = ['get', 'post', 'put', 'patch',]
 
 
@@ -56,12 +66,21 @@ class MatchView(viewsets.ModelViewSet):
     queryset = Match.objects.all()
     serializer_class = MatchSerializer
     permission_classes = [IsAdminOrReadOnly]
+    filterset_fields = ['tournament', 'home_team', 'away_team']
+    search_fields = ['home_team__name', 'away_team__name']
+    ordering_fields = ['match_date']
 
 
 class MatchPerformanceView(viewsets.ModelViewSet):
     queryset = Player_Match_Performance.objects.all()
     serializer_class = PlayerMatchPerformanceSerializer
     permission_classes = [IsAdminOrReadOnly]
+    filterset_fields = ['match', 'player', 'runs_scored', 'wickets_taken',
+                        'catches_taken', 'stumpings', 'economy_rate', 'runouts', 'fantasy_points']
+    search_fields = ['match__home_team__name',
+                     'match__away_team__name', 'player__name']
+    ordering_fields = ['fantasy_points', 'runs_scored', 'wickets_taken',
+                       'catches_taken', 'stumpings', 'economy_rate', 'runouts']
 
 
 class UserView(viewsets.ModelViewSet):
@@ -109,12 +128,16 @@ class LeagueView(viewsets.ModelViewSet):
     queryset = League.objects.all()
     serializer_class = LeagueSerializer
     permission_classes = [IsAuthenticated]
+    filterset_class = LeagueFilter
+    search_fields = ['name', 'tournament__name']
+    ordering_fields = ['entry_fee', 'name',
+                       'created_at', 'prize_pool', 'max_members']
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
     @action(detail=False, methods=['post'], url_path='join')
-    def post(self, request):
+    def join(self, request):
         invite_code = request.data.get('invite_code')
         league = get_object_or_404(League, invite_code=invite_code)
 
