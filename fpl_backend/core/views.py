@@ -26,6 +26,7 @@ from datetime import timedelta
 from .khalti import initiate_payment, verify_payment
 from django.db.models import F
 from .filters import PlayerFilter, TournamentFilter, LeagueFilter
+from .pagination import StandardPagination
 
 
 class SportsView(viewsets.ModelViewSet):
@@ -41,6 +42,7 @@ class TournamentView(viewsets.ModelViewSet):
     filterset_class = TournamentFilter
     search_fields = ['name', 'sport__name']
     ordering_fields = ['start_date', 'end_date']
+    pagination_class = StandardPagination
 
 
 class CricketTeamView(viewsets.ModelViewSet):
@@ -50,6 +52,7 @@ class CricketTeamView(viewsets.ModelViewSet):
     filterset_fields = ['tournament', 'name']
     search_fields = ['name', 'tournament__name', 'short_name']
     ordering_fields = ['name']
+    pagination_class = StandardPagination
 
 
 class PlayerView(viewsets.ModelViewSet):
@@ -60,6 +63,7 @@ class PlayerView(viewsets.ModelViewSet):
     search_fields = ['name', 'team__name']
     ordering_fields = ['name', 'credit_value']
     http_method_names = ['get', 'post', 'put', 'patch',]
+    pagination_class = StandardPagination
 
 
 class MatchView(viewsets.ModelViewSet):
@@ -69,6 +73,7 @@ class MatchView(viewsets.ModelViewSet):
     filterset_fields = ['tournament', 'home_team', 'away_team']
     search_fields = ['home_team__name', 'away_team__name']
     ordering_fields = ['match_date']
+    pagination_class = StandardPagination
 
 
 class MatchPerformanceView(viewsets.ModelViewSet):
@@ -81,6 +86,7 @@ class MatchPerformanceView(viewsets.ModelViewSet):
                      'match__away_team__name', 'player__name']
     ordering_fields = ['fantasy_points', 'runs_scored', 'wickets_taken',
                        'catches_taken', 'stumpings', 'economy_rate', 'runouts']
+    pagination_class = StandardPagination
 
 
 class UserView(viewsets.ModelViewSet):
@@ -132,6 +138,7 @@ class LeagueView(viewsets.ModelViewSet):
     search_fields = ['name', 'tournament__name']
     ordering_fields = ['entry_fee', 'name',
                        'created_at', 'prize_pool', 'max_members']
+    pagination_class = StandardPagination
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -168,6 +175,7 @@ class LeagueView(viewsets.ModelViewSet):
 class TransactionView(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardPagination
 
     def get_queryset(self):
         return Transaction.objects.filter(user=self.request.user).order_by('-created_at')
