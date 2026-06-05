@@ -1,6 +1,7 @@
 
 
 from decimal import Decimal
+
 from django.db.models import Sum
 from rest_framework.test import APITestCase
 from rest_framework.views import APIView
@@ -27,15 +28,18 @@ from .khalti import initiate_payment, verify_payment
 from django.db.models import F
 from .filters import PlayerFilter, TournamentFilter, LeagueFilter
 from .pagination import StandardPagination
+from .caching import CacheInvalidateMixin
 
 
-class SportsView(viewsets.ModelViewSet):
+class SportsView(CacheInvalidateMixin, viewsets.ModelViewSet):
+    cache_key = 'sports_list'
     queryset = Sport.objects.all()
     serializer_class = SportSerializer
     permission_classes = [IsAdminOrReadOnly]
 
 
-class TournamentView(viewsets.ModelViewSet):
+class TournamentView(CacheInvalidateMixin, viewsets.ModelViewSet):
+    cache_key = 'tournaments_list'
     queryset = Tournament.objects.all()
     serializer_class = TournamentSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -45,7 +49,8 @@ class TournamentView(viewsets.ModelViewSet):
     pagination_class = StandardPagination
 
 
-class CricketTeamView(viewsets.ModelViewSet):
+class CricketTeamView(CacheInvalidateMixin, viewsets.ModelViewSet):
+    cache_key = 'cricket_teams_list'
     queryset = Cricket_Team.objects.all()
     serializer_class = CricketTeamSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -55,7 +60,8 @@ class CricketTeamView(viewsets.ModelViewSet):
     pagination_class = StandardPagination
 
 
-class PlayerView(viewsets.ModelViewSet):
+class PlayerView(CacheInvalidateMixin, viewsets.ModelViewSet):
+    cache_key = 'players_list'
     queryset = Player.objects.all()
     serializer_class = PlayerSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -66,7 +72,8 @@ class PlayerView(viewsets.ModelViewSet):
     pagination_class = StandardPagination
 
 
-class MatchView(viewsets.ModelViewSet):
+class MatchView(CacheInvalidateMixin, viewsets.ModelViewSet):
+    cache_key = 'matches_list'
     queryset = Match.objects.all()
     serializer_class = MatchSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -90,6 +97,7 @@ class MatchPerformanceView(viewsets.ModelViewSet):
 
 
 class UserView(viewsets.ModelViewSet):
+
     queryset = User.objects.all()
     serializer_class = UserPublicSerializer
     permission_classes = [IsAdminOrReadOnly]
