@@ -4,6 +4,7 @@ from .models import League, Player_Match_Performance, Match, Fantasy_Team, Fanta
 from django.db.models import F, Sum
 from core import models
 from decimal import Decimal
+from .tasks import send_points_updated_notification
 
 
 @receiver(post_save, sender=Player_Match_Performance)
@@ -99,6 +100,7 @@ def update_league_rankings(sender, instance, **kwargs):
                     status='completed',
                     payment_method='wallet'
                 )
+        send_points_updated_notification.delay(instance.id)
 
 
 @receiver(post_save, sender=Fantasy_Team_Player)

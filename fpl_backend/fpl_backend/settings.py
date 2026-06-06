@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -101,6 +102,8 @@ DATABASES = {
     }
 
 }
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/1'
+CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
 
 
 # Password validation
@@ -159,12 +162,19 @@ CACHES = {
         }
     }
 }
+# for tsting Cached views
 if 'test' in sys.argv:
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
         }
     }
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    CELERY_BROKER_URL = 'memory://'        # ← add this
+    CELERY_RESULT_BACKEND = 'cache+memory://'  # ← add this
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'arghakhanchipujan@gmail.com'
 
 
 # Internationalization

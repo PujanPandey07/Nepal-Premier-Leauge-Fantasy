@@ -1,6 +1,7 @@
 
 
 from decimal import Decimal
+from django.core.cache import cache
 
 from django.db.models import Sum
 from rest_framework.test import APITestCase
@@ -29,6 +30,7 @@ from django.db.models import F
 from .filters import PlayerFilter, TournamentFilter, LeagueFilter
 from .pagination import StandardPagination
 from .caching import CacheInvalidateMixin
+from .tasks import send_welcome_email, send_match_reminder
 
 
 class SportsView(CacheInvalidateMixin, viewsets.ModelViewSet):
@@ -81,6 +83,16 @@ class MatchView(CacheInvalidateMixin, viewsets.ModelViewSet):
     search_fields = ['home_team__name', 'away_team__name']
     ordering_fields = ['match_date']
     pagination_class = StandardPagination
+
+    def perform_create(self, serializer):
+        match = serializer.save()
+        # schedule reminder 1 hour before match
+        reminder_time = match.match_date - timedelta(hours=1)
+        send_match_reminder.apply_async(
+            args=[match.id],
+            eta=reminder_time  # run at this specific time
+        )
+        cache.delete(self.cache_key)
 
 
 class MatchPerformanceView(viewsets.ModelViewSet):
@@ -193,7 +205,8 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            user = serializer.save()
+            send_welcome_email.delay(user.id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
