@@ -38,12 +38,15 @@ class SportTest(APITestCase):
 class UserAuthTest(APITestCase):
 
     def test_user_can_register(self):
-        response = self.client.post('/api/register/', {
+        response = self.client.post('/api/auth/registration/', {
             'name': 'Test User',
             'email': 'test@test.com',
-            'password': 'test123'
+            'password1': 'TestPass123!',
+            'password2': 'TestPass123!',
         })
+        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
         self.assertEqual(User.objects.count(), 1)
 
     def test_user_can_login(self):

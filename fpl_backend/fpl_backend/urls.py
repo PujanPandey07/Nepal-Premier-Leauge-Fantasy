@@ -12,4 +12,10 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'),
          name='swagger-ui'),
     path('api/', include('core.urls')),
+
+    # allauth/dj-rest-auth endpoints
+    # login, logout, password reset
+    path('api/auth/', include('dj_rest_auth.urls')),
+    # register + verify email
+    path('api/auth/registration/', include('dj_rest_auth.registration.urls')),
 ]

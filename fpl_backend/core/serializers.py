@@ -1,3 +1,4 @@
+from dj_rest_auth.registration.serializers import RegisterSerializer
 from rest_framework import serializers
 from .models import (
     Player, Match, Sport, League, Tournament,
@@ -170,4 +171,20 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             phone_no=validated_data.get('phone_no'),
             password=validated_data['password']
         )
+        return user
+
+
+class CustomRegisterSerializer(RegisterSerializer):
+    name = serializers.CharField(required=True)
+    username = None  # remove username field
+
+    def get_cleaned_data(self):
+        data = super().get_cleaned_data()
+        data['name'] = self.validated_data.get('name', '')
+        return data
+
+    def save(self, request):
+        user = super().save(request)
+        user.name = self.cleaned_data.get('name')
+        user.save()
         return user

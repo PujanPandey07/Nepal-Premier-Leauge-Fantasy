@@ -49,6 +49,14 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'django_celery_beat',
+    'django.contrib.sites',       # ← required by allauth
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',  # ← for Google OAuth later
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
@@ -59,6 +67,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'fpl_backend.urls'
@@ -133,6 +142,11 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,    # blacklist old tokens
     'UPDATE_LAST_LOGIN': True,           # update last_login field on User
 }
+REST_USE_JWT = True
+JWT_AUTH_COOKIE = 'jwt-auth'
+# no username field          # email is required
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_LOGIN_METHODS = {'email'}         # login with email
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
@@ -152,6 +166,11 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 
 
+}
+REST_AUTH = {
+    'REGISTER_SERIALIZER': 'core.serializers.CustomRegisterSerializer',
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'jwt-auth',
 }
 CACHES = {
     'default': {
@@ -175,6 +194,12 @@ if 'test' in sys.argv:
     CELERY_RESULT_BACKEND = 'cache+memory://'  # ← add this
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'arghakhanchipujan@gmail.com'
+
+SITE_ID = 1
+
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'name*', 'password1*', 'password2*']
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 
 
 # Internationalization

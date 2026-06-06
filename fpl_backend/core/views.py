@@ -201,16 +201,6 @@ class TransactionView(viewsets.ModelViewSet):
         return Transaction.objects.filter(user=self.request.user).order_by('-created_at')
 
 
-class RegisterView(APIView):
-    def post(self, request):
-        serializer = UserRegistrationSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            send_welcome_email.delay(user.id)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 class InitiatePaymentView(APIView):
     permission_classes = [IsAuthenticated]
 

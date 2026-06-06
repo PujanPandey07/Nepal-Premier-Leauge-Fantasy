@@ -1,7 +1,7 @@
 from django.urls import include, path
 from rest_framework import routers
 from .views import (
-    InitiatePaymentView, MatchPerformanceView, RegisterView, SportsView, VerifyPaymentView, TournamentView, CricketTeamView, PlayerView, MatchView, FantasyTeamView, FantasyTeamPlayerView, TransactionView, LeagueView
+    InitiatePaymentView, MatchPerformanceView, SportsView, VerifyPaymentView, TournamentView, CricketTeamView, PlayerView, MatchView, FantasyTeamView, FantasyTeamPlayerView, TransactionView, LeagueView
 )
 router = routers.DefaultRouter()
 router.register(r'sports', SportsView, basename='sports')
@@ -21,7 +21,6 @@ urlpatterns = [
     path('', include(router.urls)),  # all viewset routes
 
     # manual routes for custom views
-    path('register/', RegisterView.as_view()),
     path('payments/initiate/', InitiatePaymentView.as_view()),
     path('payments/verify/', VerifyPaymentView.as_view()),
 ]

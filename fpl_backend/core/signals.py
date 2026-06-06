@@ -1,3 +1,5 @@
+from allauth.account.signals import user_signed_up
+from .tasks import send_welcome_email
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from .models import League, Player_Match_Performance, Match, Fantasy_Team, Fantasy_Team_Player, LeagueMember, User, Transaction
@@ -112,3 +114,8 @@ def update_fantasy_team_budget(sender, instance, **kwargs):
 
     Fantasy_Team.objects.filter(pk=team.pk).update(
         remaining_budget=team.tournament.budget_cap - total_cost)
+
+
+@receiver(user_signed_up)
+def on_user_signed_up(request, user, **kwargs):
+    send_welcome_email.delay(user.id)
