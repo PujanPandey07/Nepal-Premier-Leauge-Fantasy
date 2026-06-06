@@ -100,11 +100,11 @@ class MatchPerformanceView(viewsets.ModelViewSet):
     serializer_class = PlayerMatchPerformanceSerializer
     permission_classes = [IsAdminOrReadOnly]
     filterset_fields = ['match', 'player', 'runs_scored', 'wickets_taken',
-                        'catches_taken', 'stumpings', 'economy_rate', 'runouts', 'fantasy_points']
+                        'catches', 'stumpings', 'economy_rate', 'run_outs', 'fantasy_points']
     search_fields = ['match__home_team__name',
                      'match__away_team__name', 'player__name']
     ordering_fields = ['fantasy_points', 'runs_scored', 'wickets_taken',
-                       'catches_taken', 'stumpings', 'economy_rate', 'runouts']
+                       'catches', 'stumpings', 'economy_rate', 'run_outs']
     pagination_class = StandardPagination
 
 
