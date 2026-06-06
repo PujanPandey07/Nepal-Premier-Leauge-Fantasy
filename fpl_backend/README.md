@@ -1,221 +1,270 @@
-# NPL Fantasy Cricket API 🏏
+# 🏏 NPL Fantasy Cricket API
 
-A full-featured fantasy cricket backend API for the Nepal Premier League (NPL), built as a learning project to master Django REST Framework, JWT authentication, and real-world API design patterns.
+A production-ready **Fantasy Cricket REST API** for the Nepal Premier League, built with Django REST Framework. Create fantasy teams, compete in leagues, and track real-time player performance.
 
-## Project Overview
+---
 
-This API powers a fantasy cricket platform where users can:
+## 🚀 Features
 
-- Create fantasy teams for NPL matches
-- Pick 11 players within a budget cap
-- Join public or private leagues using invite codes
-- Earn points based on real player performances
-- Compete in leagues for prize pools
+- 🔐 **JWT Authentication** — secure login, token refresh, token blacklisting
+- ✉️ **Email Verification** — mandatory email verification via django-allauth
+- 🏏 **Fantasy Team Management** — 11-player teams with captain/vice-captain multipliers
+- 💰 **Wallet & Payments** — Khalti payment gateway integration
+- 🏆 **League System** — create/join leagues with entry fees and prize pools
+- ⚡ **Redis Caching** — fast response times with cache invalidation
+- 📬 **Celery Tasks** — background email notifications and match reminders
+- 🔍 **Advanced Filtering** — search, filter, and order all endpoints
+- 📄 **Pagination** — standardized pagination across all list endpoints
+- 📚 **Swagger Docs** — interactive API documentation
 
-## Tech Stack
+---
 
-- **Backend:** Django 5.2 + Django REST Framework
-- **Database:** PostgreSQL
-- **Authentication:** JWT (djangorestframework-simplejwt)
-- **Payment:** Khalti Payment Gateway
-- **Documentation:** drf-spectacular (Swagger UI)
-- **Testing:** Django TestCase + DRF APITestCase
+## 🛠️ Tech Stack
 
-## Features
+| Layer          | Technology                        |
+| -------------- | --------------------------------- |
+| Backend        | Django 5.2, Django REST Framework |
+| Database       | PostgreSQL                        |
+| Authentication | JWT (SimpleJWT) + django-allauth  |
+| Caching        | Redis (Upstash) + django-redis    |
+| Task Queue     | Celery + Celery Beat              |
+| Payments       | Khalti Payment Gateway            |
+| Filtering      | django-filter                     |
+| Docs           | drf-spectacular (Swagger)         |
 
-### Authentication
+---
 
-- Custom User model with email-based login
-- JWT access + refresh tokens
-- Token blacklisting on logout
-- Role-based permissions (user, admin, moderator)
+## 📁 Project Structure
 
-### Fantasy Team System
+```
+fpl_backend/
+├── core/
+│   ├── models.py          # 13 relational models
+│   ├── serializers.py     # Validation logic
+│   ├── views.py           # ModelViewSet endpoints
+│   ├── urls.py            # Router + manual URLs
+│   ├── permissions.py     # Custom permission classes
+│   ├── signals.py         # Auto scoring + rankings
+│   ├── tasks.py           # Celery background tasks
+│   ├── filters.py         # django-filter FilterSets
+│   ├── caching.py         # CacheInvalidateMixin
+│   ├── pagination.py      # StandardPagination
+│   ├── khalti.py          # Payment integration
+│   └── tests.py           # Test suite
+├── fpl_backend/
+│   ├── settings.py
+│   ├── celery.py
+│   └── urls.py
+└── requirements.txt
+```
 
-- Create fantasy teams per match
-- Pick exactly 11 players
-- Maximum 7 players from one cricket team
-- Budget cap enforcement (100 credits default)
-- Captain (2x points) and Vice-Captain (1.5x points)
-- Role composition validation (min 4 batsmen, 4 bowlers, 2 all-rounders, 1 wicket-keeper)
-- Match deadline enforcement (locked 30 minutes before match)
-- One team per user per match
+---
 
-### Scoring System
-
-- Automatic fantasy points calculation via Django signals
-- Points for runs, wickets, catches, stumpings, run-outs
-- Bonus points for milestones (50s, 100s, 3-wicket hauls, 5-wicket hauls)
-- Strike rate and economy rate bonuses
-- Captain/Vice-Captain multipliers applied automatically
-
-### League System
-
-- Create public or private leagues
-- Auto-generated invite codes
-- Entry fee support (wallet deduction on joining)
-- Automatic league rankings after each match
-- Prize pool distribution to winner
-
-### Payment Integration
-
-- Khalti Payment Gateway integration
-- Wallet top-up flow (initiate → pay → verify)
-- Transaction history
-- Server-side payment verification (never trust the client)
-
-### API Features
-
-- Pagination (PageNumber style, 10 items per page)
-- Search on players, leagues, tournaments
-- Filtering on players (role, nationality, price range)
-- Ordering on players, leagues, tournaments
-- Swagger UI documentation at `/api/docs/`
-
-## Architecture Decisions
-
-### Why Django Signals for Scoring?
-
-Fantasy points and league rankings update automatically when match data is saved — no manual triggers needed. This keeps views clean and business logic centralized.
-
-### Why Custom Permissions?
-
-Standard DRF permissions don't handle object-level ownership (e.g. "only the team owner can edit their team"). Custom `IsOwnerOrAdmin` and `IsLeagueOwnerOrAdmin` permissions handle this cleanly.
-
-### Why APIView over ViewSets?
-
-This branch uses `APIView` for explicit control and learning purposes. A `feature/viewsets` branch refactors to `ModelViewSet` with `django-filter` for cleaner, more production-ready code.
-
-### Why JWT over Session Auth?
-
-The app is designed for Flutter mobile and React web frontends — stateless JWT tokens work across platforms without cookie/session complexity.
-
-## Setup & Installation
+## ⚙️ Setup & Installation
 
 ### Prerequisites
 
 - Python 3.11+
 - PostgreSQL
-- pip
+- Redis (or Upstash account)
 
-### Installation
+### 1. Clone the repository
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
-cd fpl_backend
+git clone https://github.com/yourusername/npl-fantasy-api.git
+cd npl-fantasy-api/fpl_backend
+```
 
-# Create virtual environment
+### 2. Create virtual environment
+
+```bash
 python -m venv env
-env\Scripts\activate  # Windows
-source env/bin/activate  # Mac/Linux
+env\Scripts\activate      # Windows
+source env/bin/activate   # Mac/Linux
+```
 
-# Install dependencies
+### 3. Install dependencies
+
+```bash
 pip install -r requirements.txt
-
-# Create .env file
-cp .env.example .env
-# Fill in your database credentials and secret key
-
-# Run migrations
-python manage.py migrate
-
-# Create superuser
-python manage.py createsuperuser
-
-# Run server
-python manage.py runserver
 ```
 
-### Environment Variables
+### 4. Configure environment variables
 
-```
+Create a `.env` file in the root directory:
+
+```env
 SECRET_KEY=your-secret-key
 DB_NAME=npl_fantasy
 DB_USER=your-db-user
 DB_PASSWORD=your-db-password
-KHALTI_SECRET_KEY=your-khalti-key
+REDIS_URL=rediss://default:password@your-upstash-url:6379
+KHALTI_PUBLIC_KEY=your-khalti-public-key
+KHALTI_SECRET_KEY=your-khalti-secret-key
 ```
 
-## API Documentation
+### 5. Run migrations
 
-Start the server and visit:
-
-```
-http://localhost:8000/api/docs/
+```bash
+python manage.py migrate
 ```
 
-### Key Endpoints
+### 6. Create superuser
 
-| Endpoint                           | Method | Description                  |
-| ---------------------------------- | ------ | ---------------------------- |
-| `/api/auth/register/`              | POST   | Register new user            |
-| `/api/token/`                      | POST   | Login, get JWT tokens        |
-| `/api/token/refresh/`              | POST   | Refresh access token         |
-| `/api/tournaments/`                | GET    | List all tournaments         |
-| `/api/tournaments/{id}/players/`   | GET    | List players with filters    |
-| `/api/fantasy-teams/`              | POST   | Create fantasy team          |
-| `/api/fantasy-teams/{id}/players/` | POST   | Add player to team           |
-| `/api/leagues/`                    | POST   | Create league                |
-| `/api/leagues/join/`               | POST   | Join league with invite code |
-| `/api/payments/initiate/`          | POST   | Initiate wallet top-up       |
-| `/api/payments/verify/`            | GET    | Verify payment callback      |
+```bash
+python manage.py createsuperuser
+```
 
-## Testing
+### 7. Run the server
+
+```bash
+python manage.py runserver
+```
+
+### 8. Start Celery worker (separate terminal)
+
+```bash
+celery -A fpl_backend worker --loglevel=info
+```
+
+---
+
+## 📡 API Endpoints
+
+### Authentication
+
+| Method | Endpoint                               | Description            |
+| ------ | -------------------------------------- | ---------------------- |
+| POST   | `/api/auth/registration/`              | Register new user      |
+| POST   | `/api/auth/registration/verify-email/` | Verify email           |
+| POST   | `/api/token/`                          | Login (get JWT tokens) |
+| POST   | `/api/token/refresh/`                  | Refresh access token   |
+| POST   | `/api/auth/password/reset/`            | Request password reset |
+| POST   | `/api/auth/password/reset/confirm/`    | Confirm password reset |
+| POST   | `/api/auth/password/change/`           | Change password        |
+
+### Core Resources
+
+| Method   | Endpoint                   | Description             |
+| -------- | -------------------------- | ----------------------- |
+| GET/POST | `/api/sports/`             | List/create sports      |
+| GET/POST | `/api/tournaments/`        | List/create tournaments |
+| GET/POST | `/api/cricket-teams/`      | List/create teams       |
+| GET/POST | `/api/players/`            | List/create players     |
+| GET/POST | `/api/matches/`            | List/create matches     |
+| GET/POST | `/api/match-performances/` | Match performance data  |
+
+### Fantasy
+
+| Method   | Endpoint                     | Description           |
+| -------- | ---------------------------- | --------------------- |
+| GET/POST | `/api/fantasy-teams/`        | Manage fantasy teams  |
+| GET/POST | `/api/fantasy-team-players/` | Manage team players   |
+| GET/POST | `/api/leagues/`              | Browse/create leagues |
+| POST     | `/api/leagues/join/`         | Join a league         |
+| GET      | `/api/transactions/`         | View transactions     |
+
+### Payments
+
+| Method | Endpoint                  | Description             |
+| ------ | ------------------------- | ----------------------- |
+| POST   | `/api/payments/initiate/` | Initiate Khalti payment |
+| GET    | `/api/payments/verify/`   | Verify payment          |
+
+---
+
+## 🔍 Filtering & Search
+
+All list endpoints support filtering, searching, and ordering:
+
+```bash
+# Filter players by role and budget
+GET /api/players/?role=Batsman&min_credit_value=5&max_credit_value=10
+
+# Search tournaments by name
+GET /api/tournaments/?search=NPL+2024
+
+# Order leagues by entry fee
+GET /api/leagues/?ordering=entry_fee
+
+# Filter matches by tournament
+GET /api/matches/?tournament=1&status=upcoming
+```
+
+---
+
+## 🏏 Fantasy Team Rules
+
+- ✅ Exactly **11 players** per team
+- ✅ Maximum **7 players** from one cricket team
+- ✅ **Budget cap** of 100 credits
+- ✅ Role composition: 4 Batsmen, 4 Bowlers, 2 All-Rounders, 1 Wicket-Keeper
+- ✅ One team per user per match
+- ✅ **30-minute deadline** before match start
+- ✅ Captain gets **2× points**, Vice-Captain gets **1.5× points**
+
+---
+
+## 🔐 Permission Classes
+
+| Permission             | Description                        |
+| ---------------------- | ---------------------------------- |
+| `IsAdminOrReadOnly`    | Admins can write, others read-only |
+| `IsOwnerOrAdmin`       | Only owner or admin can access     |
+| `IsLeagueOwnerOrAdmin` | Only league creator or admin       |
+| `IsVerified`           | Only email-verified users          |
+
+---
+
+## 🧪 Running Tests
 
 ```bash
 python manage.py test core
 ```
 
-Current test coverage:
+Current test suite: **11 tests** covering authentication, fantasy team validation, and league operations.
 
-- User registration and login
-- Admin permissions
-- Fantasy team creation
-- Player validation rules (7-player limit, budget cap, deadline)
-- League joining (duplicate check, full league check)
+---
 
-## Project Structure
+## 📬 Background Tasks (Celery)
+
+| Task                               | Trigger           | Description                      |
+| ---------------------------------- | ----------------- | -------------------------------- |
+| `send_welcome_email`               | User registration | Sends welcome email              |
+| `send_match_reminder`              | Match creation    | Reminds users 1hr before match   |
+| `send_points_updated_notification` | Match completed   | Notifies users of fantasy points |
+
+---
+
+## 📚 API Documentation
+
+Interactive Swagger docs available at:
 
 ```
-fpl_backend/
-├── core/
-│   ├── models.py          # 13 models
-│   ├── serializers.py     # Validation logic
-│   ├── views.py           # API endpoints
-│   ├── urls.py            # URL routing
-│   ├── permissions.py     # Custom permissions
-│   ├── signals.py         # Auto scoring + rankings
-│   ├── pagination.py      # Standard pagination
-│   ├── khalti.py          # Payment integration
-│   └── tests.py           # Test suite
-├── fpl_backend/
-│   ├── settings.py
-│   └── urls.py
-└── requirements.txt
+http://127.0.0.1:8000/api/docs/
 ```
 
-## Branches
+---
 
-- `backend` — APIView implementation (this branch)
-- `feature/viewsets` — ModelViewSet refactor with django-filter, Redis caching, Celery
-- `frontend` — React web application (coming soon)
+## 🗺️ Roadmap
 
-## What I Learned
+- [ ] React Frontend
+- [ ] Google OAuth login
+- [ ] Docker containerization
+- [ ] Deployment (Railway/Render)
+- [ ] Live match score integration
 
-Building this project taught me:
+---
 
-- Designing relational database schemas for complex domains
-- JWT authentication flow and token management
-- Django signals for automatic business logic
-- Complex ORM queries across multiple related models
-- Custom DRF permissions for object-level security
-- Payment gateway integration patterns
-- API design best practices
-- Test-driven thinking
+## 👨‍💻 Author
 
-## Author
+**Pujan** — Computer Science Graduate, Nepal
 
-Built by [Your Name] as a learning project to master Django REST Framework and backend development.
+- GitHub: [@yourusername](https://github.com/yourusername)
+- LinkedIn: [your-linkedin](https://linkedin.com/in/yourprofile)
 
-Nepal 🇳🇵 | 2026
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
