@@ -13,7 +13,9 @@ function Login() {
       email: email,
       password: password
     })
-    console.log(response.data)  // see what came back
+    console.log(response.data) 
+    localStorage.setItem('token', response.data.access)
+    window.location.href = '/dashboard' // see what came back
   } catch (error) {
     console.log(error)
   }
