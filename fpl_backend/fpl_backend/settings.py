@@ -35,9 +35,12 @@ INSTALLED_APPS = [
     'dj_rest_auth',
     'dj_rest_auth.registration',
     'rest_framework.authtoken',
+    'corsheaders',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -157,6 +160,10 @@ SPECTACULAR_SETTINGS = {
     'POSTPROCESSING_HOOKS': [],
 }
 
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+]
+
 # ── Test overrides ────────────────────────────────────
 if 'test' in sys.argv:
     CACHES = {
@@ -168,6 +175,7 @@ if 'test' in sys.argv:
     CELERY_TASK_EAGER_PROPAGATES = True
     CELERY_BROKER_URL = 'memory://'
     CELERY_RESULT_BACKEND = 'cache+memory://'
+ACCOUNT_EMAIL_VERIFICATION = 'none'
 
 # ── Internationalization ──────────────────────────────
 LANGUAGE_CODE = 'en-us'
