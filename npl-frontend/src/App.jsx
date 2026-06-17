@@ -3,6 +3,7 @@ import Login from "./pages/login";
 import Dashboard from "./pages/dashboard";
 import Players from "./pages/players";
 import Registration from "./pages/Registration";
+import PlayersDetail from "./pages/players_detail";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/players" element={<Players />} />
         <Route path="/register" element={<Registration />} />
+        <Route path="/players/:id" element={<PlayersDetail />} />
       </Routes>
     </Router>
   );
