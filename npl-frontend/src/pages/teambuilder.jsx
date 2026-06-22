@@ -4,14 +4,14 @@ import { TeamContext, ROLE_LIMITS } from '../context/TeamContext'
 
 function TeamBuilder() {
   const { selectedPlayers, removePlayer } = useContext(TeamContext)
-
+const totalCredits = selectedPlayers.reduce((sum, player) => sum + player.credit_value, 0)
   // Object.entries(ROLE_LIMITS) turns { Batsman: 4, Bowler: 4, ... }
   // into an array of [key, value] pairs: [["Batsman", 4], ["Bowler", 4], ...]
   // We need this because .map() only works on arrays, not on objects directly.
   return (
     <div className="min-h-screen bg-green-700 p-8">
       <h1 className="text-2xl font-bold text-white mb-6 text-center">Build Your Team</h1>
-
+      <p className="text-white text-center mb-6">Total Credits: {totalCredits}</p>
       {Object.entries(ROLE_LIMITS).map(([role, limit]) => {
         // role is e.g. "Batsman", limit is e.g. 4 — destructured from the pair above
         const playersInRole = selectedPlayers.filter(p => p.role === role)
