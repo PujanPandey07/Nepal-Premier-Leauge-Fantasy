@@ -9,6 +9,8 @@ function Players({ showAddButton = false }) {
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
     const roleFilter = searchParams.get('role')
+    const [nextPage, setNextPage] = useState(null)  // New: state for next page URL
+    const [prevPage, setPrevPage] = useState(null)  // New: state for previous page URL
 
     // New: controlled inputs. Each input's value lives in state, and
     // typing into the input calls setSearchTerm/setMinPrice/setMaxPrice,
@@ -27,8 +29,10 @@ function Players({ showAddButton = false }) {
 
         axios.get(`http://localhost:8000/api/players/?${params.toString()}`)
             .then(res => {
-                const normalized = res.data.map(p => ({ ...p, credit_value: Number(p.credit_value) }))
+                const normalized = res.data.results.map(p => ({ ...p, credit_value: Number(p.credit_value) }))
                 setPlayers(normalized)
+                setNextPage(res.data.next)
+                setPrevPage(res.data.previous)
             })
             .catch(error => console.error('Error fetching players:', error))
     }, [roleFilter, searchTerm, minPrice, maxPrice])
@@ -47,6 +51,17 @@ function Players({ showAddButton = false }) {
             console.warn(result.error)
         }
     }
+    const goToPage = (url) => {
+    if (!url) return   // nothing to do if there's no next/previous
+    axios.get(url)
+        .then(res => {
+            const normalized = res.data.results.map(p => ({ ...p, credit_value: Number(p.credit_value) }))
+            setPlayers(normalized)
+            setNextPage(res.data.next)
+            setPrevPage(res.data.previous)
+        })
+        .catch(error => console.error('Error fetching players:', error))
+}
 
     return (
         <div className="min-h-screen bg-gray-50 p-8">
@@ -128,6 +143,10 @@ function Players({ showAddButton = false }) {
                     )
                 })}
             </div>
+            <div className="flex justify-between mt-4">
+    <button disabled={!prevPage} onClick={() => goToPage(prevPage)}>Previous</button>
+    <button disabled={!nextPage} onClick={() => goToPage(nextPage)}>Next</button>
+</div>
         </div>
     )
 }
