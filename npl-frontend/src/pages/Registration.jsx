@@ -6,10 +6,11 @@ function Registration() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [errors, setErrors] = useState({})   // NEW: holds field -> [messages]
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log('form submitted', name, email, password, confirmPassword)
+    setErrors({})   // NEW: clear old errors before trying again
 
     try {
       const response = await axios.post('http://localhost:8000/api/auth/registration/', {
@@ -20,7 +21,11 @@ function Registration() {
       })
       console.log(response.data)
     } catch (error) {
-      console.log(error)
+      if (error.response && error.response.data) {
+        setErrors(error.response.data)   // NEW: store whatever Django sent back
+      } else {
+        setErrors({ non_field_errors: ['Something went wrong. Please try again.'] })
+      }
     }
   }
 
@@ -38,6 +43,9 @@ function Registration() {
               onChange={(e) => setName(e.target.value)}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {errors.name && (
+              <p className="text-red-500 text-sm mt-1">{errors.name.join(' ')}</p>
+            )}
           </div>
 
           <div className="mb-4">
@@ -48,6 +56,9 @@ function Registration() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {errors.email && (
+              <p className="text-red-500 text-sm mt-1">{errors.email.join(' ')}</p>
+            )}
           </div>
 
           <div className="mb-6">
@@ -58,6 +69,11 @@ function Registration() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {errors.password1 && (
+              <ul className="text-red-500 text-sm mt-1 list-disc list-inside">
+                {errors.password1.map((msg, i) => <li key={i}>{msg}</li>)}
+              </ul>
+            )}
           </div>
 
           <div className="mb-6">
@@ -68,7 +84,14 @@ function Registration() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {errors.password2 && (
+              <p className="text-red-500 text-sm mt-1">{errors.password2.join(' ')}</p>
+            )}
           </div>
+
+          {errors.non_field_errors && (
+            <p className="text-red-500 text-sm mb-4">{errors.non_field_errors.join(' ')}</p>
+          )}
 
           <button
             type="submit"

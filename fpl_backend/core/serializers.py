@@ -89,46 +89,56 @@ class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['points_earned']
 
-    def validate(self, data):
-        if data['is_vice_captain'] and data['is_captain']:
+        def validate(self, data):
+            instance = self.instance  # None when creating a new row, the existing row when updating
 
-            raise serializers.ValidationError(
-                "A player cannot be both captain and vice-captain.")
-        if data['fantasy_team'].team_players.filter(
-            player__team=data['player'].team
-        ).count() >= 7:
-            raise serializers.ValidationError(
-                "No more than 7 players from the same team.")
-        if data['fantasy_team'].team_players.filter(player=data['player']).exists():
-            raise serializers.ValidationError(
-                "Player already in the fantasy team.")
+            fantasy_team = data.get(
+                'fantasy_team', instance.fantasy_team if instance else None)
+            player = data.get('player', instance.player if instance else None)
+            is_captain = data.get(
+                'is_captain', instance.is_captain if instance else False)
+            is_vice_captain = data.get(
+                'is_vice_captain', instance.is_vice_captain if instance else False)
 
-        if data['fantasy_team'].team_players.count() == 10:
-            existing_roles = list(data['fantasy_team'].team_players.values_list(
-                'player__role', flat=True
-            ))
-            existing_roles.append(data['player'].role)
-            required_roles = {
-                'Batsman': 4,
-                'Bowler': 4,
-                'All-Rounder': 2,
-                'Wicket-Keeper': 1,
-            }
+            if is_vice_captain and is_captain:
+                raise serializers.ValidationError(
+                    "A player cannot be both captain and vice-captain.")
 
-            for role, min_count in required_roles.items():
-                if existing_roles.count(role) < min_count:
-                    raise serializers.ValidationError(
-                        f"Team must have at least {min_count} {role}.")
-        if data['fantasy_team'].team_players.count() >= 11:
-            raise serializers.ValidationError(
-                "Fantasy team cannot have more than 11 players.")
-        total_cost = data['fantasy_team'].team_players.aggregate(
-            total=Sum('player__credit_value'))['total'] or 0
-        total_cost += data['player'].credit_value
-        if total_cost > data['fantasy_team'].tournament.budget_cap:
-            raise serializers.ValidationError(
-                "Adding this player exceeds the team's budget.")
-        return data
+            team_players = fantasy_team.team_players
+            if instance:
+                # don't compare the row against itself
+                team_players = team_players.exclude(pk=instance.pk)
+
+            if team_players.filter(player__team=player.team).count() >= 7:
+                raise serializers.ValidationError(
+                    "No more than 7 players from the same team.")
+            if team_players.filter(player=player).exists():
+                raise serializers.ValidationError(
+                    "Player already in the fantasy team.")
+
+            if not instance and team_players.count() == 10:
+                existing_roles = list(
+                    team_players.values_list('player__role', flat=True))
+                existing_roles.append(player.role)
+                required_roles = {'Batsman': 4, 'Bowler': 4,
+                                  'All-Rounder': 2, 'Wicket-Keeper': 1}
+                for role, min_count in required_roles.items():
+                    if existing_roles.count(role) < min_count:
+                        raise serializers.ValidationError(
+                            f"Team must have at least {min_count} {role}.")
+
+            if not instance and team_players.count() >= 11:
+                raise serializers.ValidationError(
+                    "Fantasy team cannot have more than 11 players.")
+
+            total_cost = team_players.aggregate(
+                total=Sum('player__credit_value'))['total'] or 0
+            total_cost += player.credit_value
+            if total_cost > fantasy_team.tournament.budget_cap:
+                raise serializers.ValidationError(
+                    "Adding this player exceeds the team's budget.")
+
+            return data
 
 
 class LeagueSerializer(serializers.ModelSerializer):

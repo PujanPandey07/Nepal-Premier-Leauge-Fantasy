@@ -2,6 +2,7 @@ import { useEffect, useState, useContext } from 'react'
 import axios from 'axios'
 import { TeamContext, ROLE_LIMITS } from '../context/TeamContext'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
+import Navbar from '../components/navbar'
 
 function Players({ showAddButton = false }) {
     const [players, setPlayers] = useState([])
@@ -40,17 +41,17 @@ function Players({ showAddButton = false }) {
     // four values change." Before, it was [] (run once). Now, typing in
     // the search box updates searchTerm -> triggers this effect -> refetches.
 
-    const handleAddPlayer = (player) => {
-        const result = addPlayer(player)
-        if (result.success) {
-            const newCount = selectedPlayers.filter(p => p.role === player.role).length + 1
-            if (newCount >= ROLE_LIMITS[player.role]) {
-                navigate('/build-team')
-            }
-        } else {
-            console.warn(result.error)
+    const handleAddPlayer = async (player) => {
+    const result = await addPlayer(player)
+    if (result.success) {
+        const newCount = selectedPlayers.filter(p => p.role === player.role).length + 1
+        if (newCount >= ROLE_LIMITS[player.role]) {
+            navigate('/build-team')
         }
+    } else {
+        console.warn(result.error)
     }
+}
     const goToPage = (url) => {
     if (!url) return   // nothing to do if there's no next/previous
     axios.get(url)
@@ -65,6 +66,7 @@ function Players({ showAddButton = false }) {
 
     return (
         <div className="min-h-screen bg-gray-50 p-8">
+            <Navbar />
             <h1 className="text-2xl font-bold mb-6">NPL Players</h1>
             {showAddButton && (
                 <Link to="/build-team" className="inline-block mb-4 text-blue-600 hover:underline">
