@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
+import Navbar from '../components/navbar'
 
 function PlayersDetail() {
     const { id } = useParams()
@@ -13,7 +14,7 @@ function PlayersDetail() {
                 setPlayer(res.data)
                 axios.get('http://localhost:8000/api/players/')
                     .then(allRes => {
-                        const others = allRes.data.filter(
+                        const others = allRes.data.results.filter(
                             p => p.team === res.data.team && p.id !== res.data.id
                         )
                         setTeammates(others)
@@ -30,6 +31,7 @@ function PlayersDetail() {
 
     return (
         <div className="min-h-screen bg-gray-100 p-8">
+            <Navbar />
             <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
 
                 {/* Left column - main info */}
