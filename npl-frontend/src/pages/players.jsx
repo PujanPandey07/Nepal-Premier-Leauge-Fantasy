@@ -49,7 +49,7 @@ function Players({ showAddButton = false }) {
             navigate('/build-team')
         }
     } else {
-        console.warn(result.error)
+        alert(result.error)
     }
 }
     const goToPage = (url) => {

@@ -17,6 +17,15 @@ export function TeamProvider({ children }) {
   const [viceCaptainId, setViceCaptainId] = useState(null)
   const [savedTeamId, setSavedTeamId] = useState(null)        // NEW: the saved Fantasy_Team's id, if any
   const [teamPlayerRowIds, setTeamPlayerRowIds] = useState({}) // NEW: maps player.id -> Fantasy_Team_Player row id
+  
+  const isDeadlinePassed = match
+  ? new Date() > new Date(match.match_date) - 30 * 60 * 1000
+  : false
+
+console.log('match:', match)
+console.log('match_date:', match?.match_date)
+console.log('now:', new Date())
+console.log('isDeadlinePassed:', isDeadlinePassed)
 
   useEffect(() => {
     axios.get('http://localhost:8000/api/tournaments/')
@@ -283,7 +292,7 @@ export function TeamProvider({ children }) {
       selectedPlayers, addPlayer, removePlayer,
       tournament, match,
       captainId, viceCaptainId, setCaptain, setViceCaptain,
-      saveTeam, savedTeamId
+      saveTeam, savedTeamId, isDeadlinePassed
     }}>
       {children}
     </TeamContext.Provider>

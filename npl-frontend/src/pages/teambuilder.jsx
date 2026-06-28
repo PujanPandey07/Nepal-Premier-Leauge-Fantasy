@@ -5,7 +5,7 @@ import Navbar from '../components/navbar'
 
 function TeamBuilder() {
   const { selectedPlayers, removePlayer, savedTeamId } = useContext(TeamContext)
-  const { captainId, viceCaptainId, setCaptain, setViceCaptain, saveTeam } = useContext(TeamContext)
+  const { captainId, viceCaptainId, setCaptain, setViceCaptain, saveTeam , isDeadlinePassed } = useContext(TeamContext)
   const [teamName, setTeamName] = useState("")
 
   const totalCredits = selectedPlayers.reduce((sum, player) => sum + player.credit_value, 0)
@@ -24,6 +24,16 @@ function TeamBuilder() {
     const result = await setViceCaptain(playerId)
     if (!result.success) alert(result.error)
   }
+ if (isDeadlinePassed) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+      <Navbar />
+      <p className="text-xl font-semibold text-gray-700 mt-8">Deadline has passed</p>
+      <p className="text-gray-500 mt-2">You can no longer edit your team for this match.</p>
+      <Link to="/view-team" className="text-blue-600 underline mt-4">View your saved team</Link>
+    </div>
+  )
+}
 
   return (
     <div className="min-h-screen">
@@ -69,6 +79,8 @@ function TeamBuilder() {
           {Object.entries(ROLE_LIMITS).map(([role, limit]) => {
             const playersInRole = selectedPlayers.filter(p => p.role === role)
             const emptySlots = limit - playersInRole.length
+
+           
 
             return (
               <div key={role} className="mb-10">
