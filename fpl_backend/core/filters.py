@@ -1,3 +1,4 @@
+# filters.py
 from rest_framework import filters
 import django_filters
 from .models import League, Player, Tournament
@@ -8,6 +9,13 @@ class PlayerFilter(django_filters.FilterSet):
         field_name='credit_value', lookup_expr='gte')
     max_credit_value = django_filters.NumberFilter(
         field_name='credit_value', lookup_expr='lte')
+    # Accepts a comma-separated pair of team ids, e.g. ?teams=id1,id2
+    # so the frontend can fetch players from BOTH teams in a match at once.
+    teams = django_filters.CharFilter(method='filter_teams')
+
+    def filter_teams(self, queryset, name, value):
+        team_ids = value.split(',')
+        return queryset.filter(team__in=team_ids)
 
     class Meta:
         model = Player
