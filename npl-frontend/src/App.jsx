@@ -8,6 +8,9 @@ import { TeamProvider } from "./context/TeamContext";
 import TeamBuilder from "./pages/teambuilder";
 import ViewTeam from "./pages/team_view";
 import Matches from "./pages/matches";
+import ViewPoints from "./pages/points_view";
+import BuildTeamRedirect from "./pages/build_team_redirect";
+import MatchDetail from "./pages/match_detail";
 
 function App() {
   return (
@@ -19,10 +22,13 @@ function App() {
           <Route path="/players" element={<Players />} />
           <Route path="/register" element={<Registration />} />
           <Route path="/players/:id" element={<PlayersDetail />} />
-          <Route path="/build-team/players" element={<Players showAddButton={true} />} />
-          <Route path="/build-team" element={<TeamBuilder />} />
+          <Route path="/build-team" element={<BuildTeamRedirect />} />
+          <Route path="/build-team/:matchId" element={<TeamBuilder />} />
+          <Route path="/build-team/:matchId/players" element={<Players showAddButton={true} />} />
           <Route path="/view-team" element={<ViewTeam />} />
           <Route path="/matches" element={<Matches />} />
+          <Route path="/view-points" element={<ViewPoints />} />
+          <Route path="/matches/:matchId" element={<MatchDetail />} />
         </Routes>
       </Router>
     </TeamProvider>

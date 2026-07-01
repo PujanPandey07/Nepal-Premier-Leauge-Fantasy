@@ -1,3 +1,4 @@
+// TeamContext.jsx
 import { createContext, useState, useEffect } from 'react'
 import axios from 'axios'
 
@@ -15,17 +16,12 @@ export function TeamProvider({ children }) {
   const [match, setMatch] = useState(null)
   const [captainId, setCaptainId] = useState(null)
   const [viceCaptainId, setViceCaptainId] = useState(null)
-  const [savedTeamId, setSavedTeamId] = useState(null)        // NEW: the saved Fantasy_Team's id, if any
-  const [teamPlayerRowIds, setTeamPlayerRowIds] = useState({}) // NEW: maps player.id -> Fantasy_Team_Player row id
-  
-  const isDeadlinePassed = match
-  ? new Date() > new Date(match.match_date) - 30 * 60 * 1000
-  : false
+  const [savedTeamId, setSavedTeamId] = useState(null)
+  const [teamPlayerRowIds, setTeamPlayerRowIds] = useState({})
 
-console.log('match:', match)
-console.log('match_date:', match?.match_date)
-console.log('now:', new Date())
-console.log('isDeadlinePassed:', isDeadlinePassed)
+  const isDeadlinePassed = match
+    ? new Date() > new Date(match.match_date) - 30 * 60 * 1000
+    : false
 
   useEffect(() => {
     axios.get('http://localhost:8000/api/tournaments/')
@@ -33,19 +29,35 @@ console.log('isDeadlinePassed:', isDeadlinePassed)
       .catch(error => console.error('Error fetching tournaments:', error))
   }, [])
 
-  useEffect(() => {
-    axios.get('http://localhost:8000/api/matches/')
-      .then(res => setMatch(res.data.results[0]))
-      .catch(error => console.error('Error fetching matches:', error))
-  }, [])
+  // Called by TeamBuilder when it mounts or its matchId changes.
+  // TeamContext no longer reads the URL itself — TeamBuilder reads
+  // useParams() and passes the id here.
+  const loadMatch = (matchId) => {
+    if (!matchId) return
+    // If this match is already loaded, don't re-fetch — that would
+    // trigger the [match] effect and wipe selectedPlayers unnecessarily
+    // (which happens when navigating back from the players page)
+    if (match && match.id === matchId) return
+    axios.get(`http://localhost:8000/api/matches/${matchId}/`)
+      .then(res => setMatch(res.data))
+      .catch(error => console.error('Error fetching match:', error))
+  }
 
-  // NEW: once we know which match we're building for, check if a team
-  // already exists for it, and if so, load it into state instead of
-  // starting from an empty squad.
+  // Whenever match changes: reset all squad state, then check if a
+  // saved team already exists for this match and load it if so.
   useEffect(() => {
     if (!match) return
+
+    // Reset everything first — switching matches should never carry
+    // over the previous match's selection.
+    setSelectedPlayers([])
+    setCaptainId(null)
+    setViceCaptainId(null)
+    setSavedTeamId(null)
+    setTeamPlayerRowIds({})
+
     const token = localStorage.getItem('token')
-    if (!token) return  // not logged in — nothing to load yet
+    if (!token) return
 
     const headers = { Authorization: `Bearer ${token}` }
 
@@ -53,7 +65,7 @@ console.log('isDeadlinePassed:', isDeadlinePassed)
       .then(res => {
         const teams = res.data.results || res.data
         const existing = teams.find(t => t.match === match.id)
-        if (!existing) return  // no saved team for this match yet — nothing to load
+        if (!existing) return
 
         setSavedTeamId(existing.id)
 
@@ -62,8 +74,6 @@ console.log('isDeadlinePassed:', isDeadlinePassed)
             const allRows = res2.data.results || res2.data
             const rows = allRows.filter(r => r.fantasy_team === existing.id)
 
-            // Each row only has the player's ID, not their full info
-            // (name, role, credit_value) — so we fetch each player individually.
             return Promise.all(
               rows.map(row =>
                 axios.get(`http://localhost:8000/api/players/${row.player}/`)
@@ -80,11 +90,9 @@ console.log('isDeadlinePassed:', isDeadlinePassed)
           })
           .then(players => {
             setSelectedPlayers(players)
-
             const rowIdMap = {}
             players.forEach(p => { rowIdMap[p.id] = p._rowId })
             setTeamPlayerRowIds(rowIdMap)
-
             const existingCaptain = players.find(p => p._isCaptain)
             const existingViceCaptain = players.find(p => p._isViceCaptain)
             if (existingCaptain) setCaptainId(existingCaptain.id)
@@ -93,37 +101,28 @@ console.log('isDeadlinePassed:', isDeadlinePassed)
       })
       .catch(error => console.error('Error loading existing team:', error))
   }, [match])
+
   const addPlayer = async (player) => {
     if (!tournament || !tournament.budget_cap) {
-      console.warn('Tournament not loaded yet')
       return { success: false, error: 'Tournament data not loaded yet' }
     }
-    const exists = selectedPlayers.some(p => p.id === player.id)
-    if (exists) {
-      console.warn('Player already in team')
+    if (selectedPlayers.some(p => p.id === player.id)) {
       return { success: false, error: 'Player already in team' }
     }
-    const roleCount = selectedPlayers.filter(p => p.role === player.role).length
-    if (roleCount >= ROLE_LIMITS[player.role]) {
-      console.warn(`Maximum limit reached for role: ${player.role}`)
+    if (selectedPlayers.filter(p => p.role === player.role).length >= ROLE_LIMITS[player.role]) {
       return { success: false, error: `Maximum limit reached for role: ${player.role}` }
     }
     const totalCredits = selectedPlayers.reduce((sum, p) => sum + p.credit_value, 0)
     if (totalCredits + player.credit_value > tournament.budget_cap) {
-      console.warn('Adding this player exceeds the budget cap')
       return { success: false, error: 'Adding this player exceeds the budget cap' }
     }
-    const totalplayersfromteam = selectedPlayers.filter(p => p.team === player.team).length
-    if (totalplayersfromteam >= 7) {
-      console.warn(`Maximum limit reached for team: ${player.team}`)
+    if (selectedPlayers.filter(p => p.team === player.team).length >= 7) {
       return { success: false, error: `Maximum limit reached for team: ${player.team}` }
     }
     if (selectedPlayers.length >= 11) {
-      console.warn('Team is already full')
       return { success: false, error: 'Team is already full' }
     }
 
-    // NEW: if a team is already saved, sync this addition to the backend immediately
     if (savedTeamId) {
       const token = localStorage.getItem('token')
       const headers = { Authorization: `Bearer ${token}` }
@@ -135,7 +134,6 @@ console.log('isDeadlinePassed:', isDeadlinePassed)
         )
         setTeamPlayerRowIds(prev => ({ ...prev, [player.id]: res.data.id }))
       } catch (error) {
-        console.error('Error adding player to saved team:', error)
         const backendError = error.response?.data
         return { success: false, error: typeof backendError === 'object' ? Object.values(backendError)[0] : 'Failed to add player' }
       }
@@ -146,14 +144,15 @@ console.log('isDeadlinePassed:', isDeadlinePassed)
   }
 
   const removePlayer = async (playerId) => {
-    // NEW: if this player has a saved row, delete it from the backend first
     if (savedTeamId && teamPlayerRowIds[playerId]) {
       const token = localStorage.getItem('token')
       const headers = { Authorization: `Bearer ${token}` }
       try {
-        await axios.delete(`http://localhost:8000/api/fantasy-team-players/${teamPlayerRowIds[playerId]}/`, { headers })
+        await axios.delete(
+          `http://localhost:8000/api/fantasy-team-players/${teamPlayerRowIds[playerId]}/`,
+          { headers }
+        )
       } catch (error) {
-        console.error('Error removing player from saved team:', error)
         return { success: false, error: 'Failed to remove player' }
       }
       setTeamPlayerRowIds(prev => {
@@ -162,54 +161,42 @@ console.log('isDeadlinePassed:', isDeadlinePassed)
         return updated
       })
     }
-
     setSelectedPlayers(prev => prev.filter(p => p.id !== playerId))
     if (captainId === playerId) setCaptainId(null)
     if (viceCaptainId === playerId) setViceCaptainId(null)
     return { success: true }
   }
 
-  // CHANGED: now async, and PATCHes the backend if this player already
-  // has a saved row in the database.
   const setCaptain = async (playerId) => {
     if (playerId === viceCaptainId) {
-      console.warn('This player is already vice-captain')
       return { success: false, error: 'A player cannot be both captain and vice-captain' }
     }
-
     if (savedTeamId && teamPlayerRowIds[playerId]) {
       const token = localStorage.getItem('token')
       const headers = { Authorization: `Bearer ${token}` }
       try {
-        // Unset the previous captain's row first, if there was one
         if (captainId && teamPlayerRowIds[captainId]) {
           await axios.patch(
             `http://localhost:8000/api/fantasy-team-players/${teamPlayerRowIds[captainId]}/`,
-            { is_captain: false },
-            { headers }
+            { is_captain: false }, { headers }
           )
         }
         await axios.patch(
           `http://localhost:8000/api/fantasy-team-players/${teamPlayerRowIds[playerId]}/`,
-          { is_captain: true },
-          { headers }
+          { is_captain: true }, { headers }
         )
       } catch (error) {
-        console.error('Error updating captain:', error)
         return { success: false, error: 'Failed to update captain' }
       }
     }
-
     setCaptainId(playerId)
     return { success: true }
   }
 
   const setViceCaptain = async (playerId) => {
     if (playerId === captainId) {
-      console.warn('This player is already captain')
       return { success: false, error: 'A player cannot be both captain and vice-captain' }
     }
-
     if (savedTeamId && teamPlayerRowIds[playerId]) {
       const token = localStorage.getItem('token')
       const headers = { Authorization: `Bearer ${token}` }
@@ -217,54 +204,38 @@ console.log('isDeadlinePassed:', isDeadlinePassed)
         if (viceCaptainId && teamPlayerRowIds[viceCaptainId]) {
           await axios.patch(
             `http://localhost:8000/api/fantasy-team-players/${teamPlayerRowIds[viceCaptainId]}/`,
-            { is_vice_captain: false },
-            { headers }
+            { is_vice_captain: false }, { headers }
           )
         }
         await axios.patch(
           `http://localhost:8000/api/fantasy-team-players/${teamPlayerRowIds[playerId]}/`,
-          { is_vice_captain: true },
-          { headers }
+          { is_vice_captain: true }, { headers }
         )
       } catch (error) {
-        console.error('Error updating vice-captain:', error)
         return { success: false, error: 'Failed to update vice-captain' }
       }
     }
-
     setViceCaptainId(playerId)
     return { success: true }
   }
 
   const saveTeam = async (teamName) => {
     const token = localStorage.getItem('token')
-    if (!token) {
-      return { success: false, error: 'You must be logged in to save a team' }
-    }
-    if (!match) {
-      return { success: false, error: 'Match data not loaded yet' }
-    }
-    if (selectedPlayers.length < 11) {
-      return { success: false, error: 'Team is not complete yet' }
-    }
+    if (!token) return { success: false, error: 'You must be logged in to save a team' }
+    if (!match) return { success: false, error: 'Match data not loaded yet' }
+    if (selectedPlayers.length < 11) return { success: false, error: 'Team is not complete yet' }
 
     const headers = { Authorization: `Bearer ${token}` }
-
     try {
       const teamRes = await axios.post(
         'http://localhost:8000/api/fantasy-teams/',
-        {
-          tournament: tournament.id,
-          match: match.id,
-          name: teamName,
-          deadline: match.match_date,
-        },
+        { tournament: tournament.id, match: match.id, name: teamName, deadline: match.match_date },
         { headers }
       )
       const fantasyTeamId = teamRes.data.id
-      setSavedTeamId(fantasyTeamId)  // NEW
+      setSavedTeamId(fantasyTeamId)
 
-      const rowIdMap = {}  // NEW
+      const rowIdMap = {}
       for (const player of selectedPlayers) {
         const playerRowRes = await axios.post(
           'http://localhost:8000/api/fantasy-team-players/',
@@ -276,13 +247,11 @@ console.log('isDeadlinePassed:', isDeadlinePassed)
           },
           { headers }
         )
-        rowIdMap[player.id] = playerRowRes.data.id  // NEW
+        rowIdMap[player.id] = playerRowRes.data.id
       }
-      setTeamPlayerRowIds(rowIdMap)  // NEW
-
+      setTeamPlayerRowIds(rowIdMap)
       return { success: true, teamId: fantasyTeamId }
     } catch (error) {
-      console.error('Error saving team:', error)
       return { success: false, error: error.response?.data?.detail || 'Failed to save team' }
     }
   }
@@ -290,9 +259,9 @@ console.log('isDeadlinePassed:', isDeadlinePassed)
   return (
     <TeamContext.Provider value={{
       selectedPlayers, addPlayer, removePlayer,
-      tournament, match,
+      tournament, match, loadMatch,
       captainId, viceCaptainId, setCaptain, setViceCaptain,
-      saveTeam, savedTeamId, isDeadlinePassed
+      saveTeam, savedTeamId, isDeadlinePassed,
     }}>
       {children}
     </TeamContext.Provider>

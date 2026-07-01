@@ -1,34 +1,145 @@
-import { useContext } from 'react'
-import { TeamContext, ROLE_LIMITS } from '../context/TeamContext'
+// ViewTeam.jsx
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import axios from 'axios'
+import { ROLE_LIMITS } from '../context/TeamContext'
+import Navbar from '../components/navbar'
 
 function ViewTeam() {
+  const [match, setMatch] = useState(null)
+  const [squad, setSquad] = useState([])
+  const [captainId, setCaptainId] = useState(null)
+  const [viceCaptainId, setViceCaptainId] = useState(null)
+  const [teamName, setTeamName] = useState('')
+  const [cricketTeams, setCricketTeams] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [noTeam, setNoTeam] = useState(false)
 
-  const { selectedPlayers, captainId, viceCaptainId, setCaptain, setViceCaptain } = useContext(TeamContext)
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      setLoading(false)
+      return
+    }
+    const headers = { Authorization: `Bearer ${token}` }
 
-  const totalPoints = selectedPlayers.reduce((sum, p) => sum + (p.points_earned || 0), 0)
+    // Step 1: find the closest match with an open deadline —
+    // same rule as BuildTeamRedirect so both pages agree on "current match"
+    Promise.all([
+      axios.get('http://localhost:8000/api/matches/'),
+      axios.get('http://localhost:8000/api/cricket-teams/'),
+    ])
+      .then(([matchesRes, teamsRes]) => {
+        const allMatches = matchesRes.data.results || matchesRes.data
+        const teamList = teamsRes.data.results || teamsRes.data
 
-  const handleSetCaptain = async (playerId) => {
-    const result = await setCaptain(playerId)
-    if (!result.success) alert(result.error)
-  }
+        // Build id -> name map for the header
+        const teamMap = {}
+        teamList.forEach(t => { teamMap[t.id] = t.name })
+        setCricketTeams(teamMap)
 
-  const handleSetViceCaptain = async (playerId) => {
-    const result = await setViceCaptain(playerId)
-    if (!result.success) alert(result.error)
-  }
+        const now = new Date()
+        const eligible = allMatches.filter(m =>
+          now < new Date(m.match_date) - 30 * 60 * 1000
+        )
 
-  if (selectedPlayers.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">No saved team found for this match yet.</p>
+        if (eligible.length === 0) {
+          // No open match — nothing to show
+          setNoTeam(true)
+          setLoading(false)
+          return
+        }
+
+        const closest = eligible.reduce((soonest, current) =>
+          new Date(current.match_date) < new Date(soonest.match_date) ? current : soonest
+        )
+        setMatch(closest)
+
+        // Step 2: check if the user has a saved fantasy team for this match
+        return axios.get('http://localhost:8000/api/fantasy-teams/', { headers })
+          .then(res => {
+            const fantasyTeams = res.data.results || res.data
+            const existing = fantasyTeams.find(t => t.match === closest.id)
+
+            if (!existing) {
+              setNoTeam(true)
+              setLoading(false)
+              return
+            }
+
+            setTeamName(existing.name)
+
+            // Step 3: load the 11 players for this team
+            return axios.get('http://localhost:8000/api/fantasy-team-players/', { headers })
+              .then(res2 => {
+                const allRows = res2.data.results || res2.data
+                const rows = allRows.filter(r => r.fantasy_team === existing.id)
+
+                return Promise.all(
+                  rows.map(row =>
+                    axios.get(`http://localhost:8000/api/players/${row.player}/`)
+                      .then(pRes => ({
+                        ...pRes.data,
+                        credit_value: Number(pRes.data.credit_value),
+                        _isCaptain: row.is_captain,
+                        _isViceCaptain: row.is_vice_captain,
+                        points_earned: row.points_earned,
+                      }))
+                  )
+                )
+              })
+              .then(players => {
+                setSquad(players)
+                const cap = players.find(p => p._isCaptain)
+                const vc = players.find(p => p._isViceCaptain)
+                if (cap) setCaptainId(cap.id)
+                if (vc) setViceCaptainId(vc.id)
+                setLoading(false)
+              })
+          })
+      })
+      .catch(err => {
+        console.error('Error loading view team:', err)
+        setLoading(false)
+      })
+  }, [])
+
+  const isDeadlinePassed = match
+    ? new Date() > new Date(match.match_date) - 30 * 60 * 1000
+    : false
+
+  const totalPoints = squad.reduce((sum, p) => sum + (p.points_earned || 0), 0)
+
+  if (loading) return <p className="p-8">Loading...</p>
+
+  if (noTeam) return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <div className="flex flex-col items-center justify-center mt-20">
+        <p className="text-gray-600 text-lg">No saved team found for the current match.</p>
+        <Link
+          to="/matches"
+          className="mt-4 text-blue-600 underline"
+        >
+          Go to matches to build your team
+        </Link>
       </div>
-    )
-  }
+    </div>
+  )
 
   return (
     <div className="min-h-screen">
+      <Navbar />
       <div className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
-        <p className="text-lg font-bold">Your Team</p>
+        <div>
+          {/* Show which match this team is for */}
+          <p className="text-xs text-gray-400">
+            {match
+              ? `${cricketTeams[match.home_team] || '...'} vs ${cricketTeams[match.away_team] || '...'}`
+              : ''}
+          </p>
+          <p className="text-lg font-bold">{teamName}</p>
+        </div>
         <div className="text-right">
           <p className="text-xs text-gray-400">Total Points</p>
           <p className="text-lg font-bold">{totalPoints}</p>
@@ -52,8 +163,7 @@ function ViewTeam() {
 
         <div className="relative z-10">
           {Object.entries(ROLE_LIMITS).map(([role]) => {
-            const playersInRole = selectedPlayers.filter(p => p.role === role)
-
+            const playersInRole = squad.filter(p => p.role === role)
             return (
               <div key={role} className="mb-10">
                 <h2 className="text-white text-center text-sm font-semibold tracking-wide uppercase mb-4">
@@ -81,10 +191,6 @@ function ViewTeam() {
                         {player.name}
                       </div>
                       <p className="text-white text-xs mt-1">{player.points_earned || 0} pts</p>
-                      <div className="flex gap-2 mt-1 text-[10px]">
-                        <button onClick={() => handleSetCaptain(player.id)} className="text-yellow-300 underline">C</button>
-                        <button onClick={() => handleSetViceCaptain(player.id)} className="text-blue-300 underline">VC</button>
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -92,14 +198,17 @@ function ViewTeam() {
             )
           })}
 
-          <div className="text-center mt-8">
-            <button
-              onClick={() => alert('Team confirmed! Good luck.')}
-              className="bg-green-600 text-white px-6 py-2 rounded font-semibold"
-            >
-              Confirm Team
-            </button>
-          </div>
+          {/* Edit team button — only if deadline hasn't passed */}
+          {!isDeadlinePassed && match && (
+            <div className="text-center mt-8">
+              <Link
+                to={`/build-team/${match.id}`}
+                className="inline-block bg-yellow-500 text-white px-6 py-2 rounded font-semibold"
+              >
+                Edit Team
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>

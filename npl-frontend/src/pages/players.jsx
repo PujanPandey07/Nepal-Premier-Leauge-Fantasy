@@ -1,32 +1,34 @@
 import { useEffect, useState, useContext } from 'react'
 import axios from 'axios'
 import { TeamContext, ROLE_LIMITS } from '../context/TeamContext'
-import { Link, useSearchParams, useNavigate } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/navbar'
 
 function Players({ showAddButton = false }) {
     const [players, setPlayers] = useState([])
-    const { addPlayer, selectedPlayers } = useContext(TeamContext)
+    const { addPlayer, selectedPlayers, match } = useContext(TeamContext)
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
+    const { matchId } = useParams()  // same matchId as TeamBuilder, used for back link + navigate
     const roleFilter = searchParams.get('role')
-    const [nextPage, setNextPage] = useState(null)  // New: state for next page URL
-    const [prevPage, setPrevPage] = useState(null)  // New: state for previous page URL
-
-    // New: controlled inputs. Each input's value lives in state, and
-    // typing into the input calls setSearchTerm/setMinPrice/setMaxPrice,
-    // which updates state, which re-renders the input with the new value.
+    const [nextPage, setNextPage] = useState(null)
+    const [prevPage, setPrevPage] = useState(null)
     const [searchTerm, setSearchTerm] = useState('')
     const [minPrice, setMinPrice] = useState('')
     const [maxPrice, setMaxPrice] = useState('')
 
     useEffect(() => {
-        // URLSearchParams builds a query string for us safely
+        // match comes from TeamContext, which reads matchId from the URL —
+        // wait for it before fetching so we can scope players to this match's teams
+        if (!match) return
+
         const params = new URLSearchParams()
         if (roleFilter) params.append('role', roleFilter)
         if (searchTerm) params.append('search', searchTerm)
         if (minPrice) params.append('min_credit_value', minPrice)
         if (maxPrice) params.append('max_credit_value', maxPrice)
+        // Only fetch players from this match's two teams
+        params.append('teams', `${match.home_team},${match.away_team}`)
 
         axios.get(`http://localhost:8000/api/players/?${params.toString()}`)
             .then(res => {
@@ -36,46 +38,45 @@ function Players({ showAddButton = false }) {
                 setPrevPage(res.data.previous)
             })
             .catch(error => console.error('Error fetching players:', error))
-    }, [roleFilter, searchTerm, minPrice, maxPrice])
-    // ^ This array tells React: "re-run this effect whenever any of these
-    // four values change." Before, it was [] (run once). Now, typing in
-    // the search box updates searchTerm -> triggers this effect -> refetches.
+    }, [roleFilter, searchTerm, minPrice, maxPrice, match])
 
     const handleAddPlayer = async (player) => {
-    const result = await addPlayer(player)
-    if (result.success) {
-        const newCount = selectedPlayers.filter(p => p.role === player.role).length + 1
-        if (newCount >= ROLE_LIMITS[player.role]) {
-            navigate('/build-team')
+        const result = await addPlayer(player)
+        if (result.success) {
+            const newCount = selectedPlayers.filter(p => p.role === player.role).length + 1
+            if (newCount >= ROLE_LIMITS[player.role]) {
+                // Go back to THIS match's build page, not just /build-team
+                navigate(`/build-team/${matchId}`)
+            }
+        } else {
+            alert(result.error)
         }
-    } else {
-        alert(result.error)
     }
-}
+
     const goToPage = (url) => {
-    if (!url) return   // nothing to do if there's no next/previous
-    axios.get(url)
-        .then(res => {
-            const normalized = res.data.results.map(p => ({ ...p, credit_value: Number(p.credit_value) }))
-            setPlayers(normalized)
-            setNextPage(res.data.next)
-            setPrevPage(res.data.previous)
-        })
-        .catch(error => console.error('Error fetching players:', error))
-}
+        if (!url) return
+        axios.get(url)
+            .then(res => {
+                const normalized = res.data.results.map(p => ({ ...p, credit_value: Number(p.credit_value) }))
+                setPlayers(normalized)
+                setNextPage(res.data.next)
+                setPrevPage(res.data.previous)
+            })
+            .catch(error => console.error('Error fetching players:', error))
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 p-8">
             <Navbar />
             <h1 className="text-2xl font-bold mb-6">NPL Players</h1>
             {showAddButton && (
-                <Link to="/build-team" className="inline-block mb-4 text-blue-600 hover:underline">
+                // Back link uses matchId so we return to the right match's build page
+                <Link to={`/build-team/${matchId}`} className="inline-block mb-4 text-blue-600 hover:underline">
                     ← Back to team
                 </Link>
             )}
             <p className="mb-4 text-sm text-gray-600">Selected: {selectedPlayers.length}</p>
 
-            {/* New: the filter inputs */}
             <div className="flex gap-4 mb-4">
                 <input
                     type="text"
@@ -111,7 +112,6 @@ function Players({ showAddButton = false }) {
 
                 {players.map(player => {
                     const isSelected = selectedPlayers.some(p => p.id === player.id)
-
                     return (
                         <div
                             key={player.id}
@@ -146,9 +146,9 @@ function Players({ showAddButton = false }) {
                 })}
             </div>
             <div className="flex justify-between mt-4">
-    <button disabled={!prevPage} onClick={() => goToPage(prevPage)}>Previous</button>
-    <button disabled={!nextPage} onClick={() => goToPage(nextPage)}>Next</button>
-</div>
+                <button disabled={!prevPage} onClick={() => goToPage(prevPage)}>Previous</button>
+                <button disabled={!nextPage} onClick={() => goToPage(nextPage)}>Next</button>
+            </div>
         </div>
     )
 }
