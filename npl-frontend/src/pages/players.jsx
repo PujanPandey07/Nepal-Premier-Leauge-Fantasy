@@ -1,3 +1,4 @@
+// Players.jsx
 import { useEffect, useState, useContext } from 'react'
 import axios from 'axios'
 import { TeamContext, ROLE_LIMITS } from '../context/TeamContext'
@@ -9,7 +10,7 @@ function Players({ showAddButton = false }) {
     const { addPlayer, selectedPlayers, match } = useContext(TeamContext)
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
-    const { matchId } = useParams()  // same matchId as TeamBuilder, used for back link + navigate
+    const { matchId } = useParams()
     const roleFilter = searchParams.get('role')
     const [nextPage, setNextPage] = useState(null)
     const [prevPage, setPrevPage] = useState(null)
@@ -18,17 +19,21 @@ function Players({ showAddButton = false }) {
     const [maxPrice, setMaxPrice] = useState('')
 
     useEffect(() => {
-        // match comes from TeamContext, which reads matchId from the URL —
-        // wait for it before fetching so we can scope players to this match's teams
-        if (!match) return
+        // In team-building mode (showAddButton=true): wait for match to load
+        // so we can scope players to that match's two teams only.
+        // In general players page (showAddButton=false): skip the guard
+        // and fetch all players with no team filter.
+        if (showAddButton && !match) return
 
         const params = new URLSearchParams()
         if (roleFilter) params.append('role', roleFilter)
         if (searchTerm) params.append('search', searchTerm)
         if (minPrice) params.append('min_credit_value', minPrice)
         if (maxPrice) params.append('max_credit_value', maxPrice)
-        // Only fetch players from this match's two teams
-        params.append('teams', `${match.home_team},${match.away_team}`)
+        // Only filter by match teams when in team-building mode
+        if (showAddButton && match) {
+            params.append('teams', `${match.home_team},${match.away_team}`)
+        }
 
         axios.get(`http://localhost:8000/api/players/?${params.toString()}`)
             .then(res => {
@@ -38,14 +43,13 @@ function Players({ showAddButton = false }) {
                 setPrevPage(res.data.previous)
             })
             .catch(error => console.error('Error fetching players:', error))
-    }, [roleFilter, searchTerm, minPrice, maxPrice, match])
+    }, [roleFilter, searchTerm, minPrice, maxPrice, match, showAddButton])
 
     const handleAddPlayer = async (player) => {
         const result = await addPlayer(player)
         if (result.success) {
             const newCount = selectedPlayers.filter(p => p.role === player.role).length + 1
             if (newCount >= ROLE_LIMITS[player.role]) {
-                // Go back to THIS match's build page, not just /build-team
                 navigate(`/build-team/${matchId}`)
             }
         } else {
@@ -70,7 +74,6 @@ function Players({ showAddButton = false }) {
             <Navbar />
             <h1 className="text-2xl font-bold mb-6">NPL Players</h1>
             {showAddButton && (
-                // Back link uses matchId so we return to the right match's build page
                 <Link to={`/build-team/${matchId}`} className="inline-block mb-4 text-blue-600 hover:underline">
                     ← Back to team
                 </Link>

@@ -18,6 +18,9 @@ function Navbar() {
         <Link to="/view-team" className="hover:text-yellow-400">View Team</Link>
         <Link to="/matches" className="hover:text-yellow-400">Matches</Link>
         <Link to="/view-points" className="hover:text-yellow-400">View Points</Link>
+        <Link to="/leagues" className="hover:text-yellow-400">Leagues</Link>
+      </div>
+      <div className="flex gap-4 items-center">
       </div>
       <div className="flex gap-4 items-center">
         <button onClick={handleLogout} className="hover:text-red-400">Logout</button>
