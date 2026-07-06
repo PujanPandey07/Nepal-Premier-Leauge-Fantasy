@@ -142,13 +142,28 @@ class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
 
 
 class LeagueSerializer(serializers.ModelSerializer):
+    member_count = serializers.SerializerMethodField()
+
     class Meta:
         model = League
         fields = '__all__'
         read_only_fields = ['created_at', 'created_by', 'invite_code']
 
+    def get_member_count(self, obj):
+        return obj.members.count()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        # Only the league creator can see the invite_code
+        if not request or request.user != instance.created_by:
+            data.pop('invite_code', None)
+        return data
+
     def create(self, validated_data):
-        validated_data['invite_code'] = secrets.token_urlsafe(6)
+        # Only generate invite code for private leagues
+        if not validated_data.get('is_public', True):
+            validated_data['invite_code'] = secrets.token_urlsafe(6)
         return League.objects.create(**validated_data)
 
 

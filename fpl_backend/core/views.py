@@ -165,21 +165,35 @@ class LeagueView(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='join')
     def join(self, request):
+        league_id = request.data.get('league_id')
         invite_code = request.data.get('invite_code')
-        league = get_object_or_404(League, invite_code=invite_code)
+        league = get_object_or_404(League, pk=league_id)
 
         if LeagueMember.objects.filter(user=request.user, league=league).exists():
             return Response({'detail': 'Already a member.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if LeagueMember.objects.filter(league=league).count() >= league.max_members:
             return Response({'detail': 'League is full.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if league.status != 'open':
+            return Response({'detail': 'League is not open.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Private leagues require invite code, public leagues don't
+        if not league.is_public:
+            if not invite_code or invite_code != league.invite_code:
+                return Response(
+                    {'detail': 'Invalid invite code.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         if league.entry_fee > 0:
             if request.user.wallet_balance < league.entry_fee:
-                return Response({'detail': 'Insufficient balance to join league.'}, status=status.HTTP_400_BAD_REQUEST)
-
+                return Response(
+                    {'detail': 'Insufficient balance.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             request.user.wallet_balance -= league.entry_fee
             request.user.save()
-
             Transaction.objects.create(
                 user=request.user,
                 amount=league.entry_fee,
@@ -189,7 +203,10 @@ class LeagueView(viewsets.ModelViewSet):
             )
 
         LeagueMember.objects.create(user=request.user, league=league)
-        return Response({'detail': 'Successfully joined the league.'}, status=status.HTTP_201_CREATED)
+        return Response(
+            {'detail': 'Successfully joined the league.'},
+            status=status.HTTP_201_CREATED
+        )
 
 
 class TransactionView(viewsets.ModelViewSet):
