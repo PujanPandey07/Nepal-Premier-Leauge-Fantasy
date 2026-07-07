@@ -1,5 +1,6 @@
 
 
+from .permissions import IsAdminOrReadOnly, IsAuthenticated
 from decimal import Decimal
 from django.core.cache import cache
 
@@ -153,12 +154,18 @@ class FantasyTeamPlayerView(viewsets.ModelViewSet):
 class LeagueView(viewsets.ModelViewSet):
     queryset = League.objects.all()
     serializer_class = LeagueSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrReadOnly]
     filterset_class = LeagueFilter
     search_fields = ['name', 'tournament__name']
     ordering_fields = ['entry_fee', 'name',
                        'created_at', 'prize_pool', 'max_members']
     pagination_class = StandardPagination
+
+    def get_permissions(self):
+        # join action only needs to be authenticated, not admin
+        if self.action in ['join', 'create']:
+            return [IsAuthenticated()]
+        return super().get_permissions()
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -216,6 +223,22 @@ class TransactionView(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Transaction.objects.filter(user=self.request.user).order_by('-created_at')
+
+
+class LeagueMemberView(viewsets.ModelViewSet):
+    serializer_class = LeagueMemberSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ['league', 'user']
+    # no PUT/PATCH — membership doesn't need editing
+    http_method_names = ['get', 'post', 'delete']
+
+    def get_queryset(self):
+        # Users can only see memberships for leagues they're in or created
+        return LeagueMember.objects.filter(
+            league__created_by=self.request.user
+        ) | LeagueMember.objects.filter(
+            user=self.request.user
+        )
 
 
 class InitiatePaymentView(APIView):

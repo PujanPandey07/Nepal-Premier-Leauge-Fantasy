@@ -13,8 +13,10 @@ import BuildTeamRedirect from "./pages/build_team_redirect";
 import MatchDetail from "./pages/match_detail";
 import Leagues from "./pages/leauges";
 import LeagueDetails from "./pages/league_details";
-
-
+import ProtectedRoute from "./components/protected_route";
+import CricketTeams from "./pages/cricket_teams";
+import CricketTeamDetail from "./pages/cricket_teams_detail";
+// Only build-team routes need TeamProvider now
 function TeamLayout() {
   return (
     <TeamProvider>
@@ -22,8 +24,6 @@ function TeamLayout() {
         <Route path="build-team" element={<BuildTeamRedirect />} />
         <Route path="build-team/:matchId" element={<TeamBuilder />} />
         <Route path="build-team/:matchId/players" element={<Players showAddButton={true} />} />
-        <Route path="players" element={<Players />} />
-        <Route path="players/:id" element={<PlayersDetail />} />
       </Routes>
     </TeamProvider>
   )
@@ -33,19 +33,31 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Routes that don't need TeamContext */}
-        <Route path="/" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        {/* Public routes — no login needed */}
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Registration />} />
-        <Route path="/view-team" element={<ViewTeam />} />
         <Route path="/matches" element={<Matches />} />
         <Route path="/matches/:matchId" element={<MatchDetail />} />
-        <Route path="/view-points" element={<ViewPoints />} />
         <Route path="/leagues" element={<Leagues />} />
         <Route path="/leagues/:leagueId" element={<LeagueDetails />} />
+        <Route path="/players" element={<Players />} />
+        <Route path="/players/:id" element={<PlayersDetail />} />
+        <Route path="/cricket-teams" element={<CricketTeams />} />
+        <Route path="/cricket-teams/:teamId" element={<CricketTeamDetail />} />
 
-        {/* TeamLayout handles all /build-team/* and /players/* routes */}
-        <Route path="/*" element={<TeamLayout />} />
+        {/* Protected routes — login required */}
+        <Route path="/view-team" element={
+          <ProtectedRoute><ViewTeam /></ProtectedRoute>
+        } />
+        <Route path="/view-points" element={
+          <ProtectedRoute><ViewPoints /></ProtectedRoute>
+        } />
+
+        {/* build-team/* is protected + needs TeamProvider */}
+        <Route path="/*" element={
+          <ProtectedRoute><TeamLayout /></ProtectedRoute>
+        } />
       </Routes>
     </Router>
   )

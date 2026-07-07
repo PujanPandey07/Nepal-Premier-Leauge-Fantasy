@@ -7,7 +7,10 @@ import Navbar from '../components/navbar'
 
 function Players({ showAddButton = false }) {
     const [players, setPlayers] = useState([])
-    const { addPlayer, selectedPlayers, match } = useContext(TeamContext)
+    const context = useContext(TeamContext)
+    const addPlayer = context?.addPlayer
+    const selectedPlayers = context?.selectedPlayers || []
+    const match = context?.match || null
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
     const { matchId } = useParams()
