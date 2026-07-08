@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import axios from 'axios'
 import Navbar from '../components/Navbar'
+import  axiosInstance  from '../utilis/axiosInstance'
 
 function MatchDetail() {
   const { matchId } = useParams()
@@ -19,8 +20,8 @@ function MatchDetail() {
 
   useEffect(() => {
     Promise.all([
-      axios.get(`http://localhost:8000/api/matches/${matchId}/`),
-      axios.get('http://localhost:8000/api/cricket-teams/'),
+      axiosInstance.get(`/api/matches/${matchId}/`),
+      axiosInstance.get('/api/cricket-teams/'),
     ])
       .then(([matchRes, teamsRes]) => {
         setMatch(matchRes.data)

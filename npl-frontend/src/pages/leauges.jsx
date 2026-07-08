@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/navbar";
 import { Link } from "react-router-dom";
+import  axiosInstance  from '../utilis/axiosInstance'
 
 function Leagues() {
   const [allLeagues, setAllLeagues] = useState([])
@@ -26,20 +27,20 @@ function Leagues() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState(null)
 
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('refreshtoken')
   const isLoggedIn = !!token
   const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
   useEffect(() => {
     // Fetch leagues and memberships in parallel
     Promise.all([
-      axios.get('http://localhost:8000/api/leagues/', { headers }),
+      axiosInstance.get('/api/leagues/', { headers }),
       isLoggedIn
-        ? axios.get('http://localhost:8000/api/league-members/', { headers })
+        ? axiosInstance.get('/api/league-members/', { headers })
             .catch(() => ({ data: { results: [] } }))
         : Promise.resolve({ data: { results: [] } }),
       isLoggedIn
-        ? axios.get('http://localhost:8000/api/tournaments/', { headers })
+        ? axiosInstance.get('/api/tournaments/', { headers })
         : Promise.resolve({ data: { results: [] } }),
     ])
       .then(([leaguesRes, membersRes, tournamentsRes]) => {
@@ -95,8 +96,8 @@ function Leagues() {
     }
 
     try {
-      const res = await axios.post(
-        'http://localhost:8000/api/leagues/',
+      const res = await axiosInstance.post(
+        '/api/leagues/',
         {
           name: form.name,
           tournament: form.tournament,

@@ -2,10 +2,11 @@ import { Link, useNavigate } from 'react-router-dom'
 
 function Navbar() {
   const navigate = useNavigate()
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('refreshtoken')
   const isLoggedIn = !!token
 
   const handleLogout = () => {
+    localStorage.removeItem('refreshtoken')
     localStorage.removeItem('token')
     navigate('/login')
   }

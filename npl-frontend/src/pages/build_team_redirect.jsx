@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import axios from 'axios'
+import  axiosInstance  from '../utilis/axiosInstance'
 
 export default function BuildTeamRedirect() {
   const [targetId, setTargetId] = useState(null)
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
-    axios.get('http://localhost:8000/api/matches/')
+    axiosInstance.get('/api/matches/')
       .then(res => {
         const allMatches = res.data.results || res.data
         const now = new Date()

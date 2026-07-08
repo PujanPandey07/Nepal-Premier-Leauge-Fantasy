@@ -4,6 +4,7 @@ import axios from 'axios'
 import { TeamContext, ROLE_LIMITS } from '../context/TeamContext'
 import { Link, useSearchParams, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/navbar'
+import  axiosInstance  from '../utilis/axiosInstance'
 
 function Players({ showAddButton = false }) {
     const [players, setPlayers] = useState([])
@@ -38,7 +39,7 @@ function Players({ showAddButton = false }) {
             params.append('teams', `${match.home_team},${match.away_team}`)
         }
 
-        axios.get(`http://localhost:8000/api/players/?${params.toString()}`)
+        axiosInstance.get(`/api/players/?${params.toString()}`)
             .then(res => {
                 const normalized = res.data.results.map(p => ({ ...p, credit_value: Number(p.credit_value) }))
                 setPlayers(normalized)

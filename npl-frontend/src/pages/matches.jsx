@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
+import  axiosInstance  from '../utilis/axiosInstance'
 
 function Matches() {
   const [matches, setMatches] = useState([])
@@ -11,7 +12,7 @@ function Matches() {
   const [prevPage, setPrevPage] = useState(null)
 
   useEffect(() => {
-    axios.get('http://localhost:8000/api/cricket-teams/')
+    axiosInstance.get('/api/cricket-teams/')
       .then(res => {
         const list = res.data.results || res.data
         const map = {}
@@ -20,7 +21,7 @@ function Matches() {
       })
       .catch(error => console.error('Error fetching teams:', error))
 
-    axios.get('http://localhost:8000/api/matches/')
+    axiosInstance.get('/api/matches/')
       .then(res => {
         setMatches(res.data.results || res.data)
         setNextPage(res.data.next)

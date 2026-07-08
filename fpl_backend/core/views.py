@@ -1,5 +1,7 @@
 
 
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenObtainPairSerializer
 from .permissions import IsAdminOrReadOnly, IsAuthenticated
 from decimal import Decimal
 from django.core.cache import cache
@@ -288,3 +290,7 @@ class VerifyPaymentView(APIView):
             transaction.status = 'failed'
             transaction.save()
             return Response({'detail': 'Payment verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer

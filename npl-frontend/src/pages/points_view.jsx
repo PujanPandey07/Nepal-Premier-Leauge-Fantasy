@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { ROLE_LIMITS } from '../context/TeamContext'
+import  axiosInstance  from '../utilis/axiosInstance'
 
 export default function ViewPoints() {
   const [teamList, setTeamList] = useState([])   // [{ fantasyTeamId, matchId, label, totalPoints, matchDate }], sorted latest-first
@@ -13,7 +14,7 @@ export default function ViewPoints() {
 
   // ---- Layer 1: the lightweight list of all past teams ----
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('refreshtoken')
     if (!token) {
       setError('You must be logged in to view points')
       setLoadingList(false)
@@ -22,9 +23,9 @@ export default function ViewPoints() {
     const headers = { Authorization: `Bearer ${token}` }
 
     Promise.all([
-      axios.get('http://localhost:8000/api/fantasy-teams/', { headers }),
-      axios.get('http://localhost:8000/api/matches/'),
-      axios.get('http://localhost:8000/api/cricket-teams/'),
+      axiosInstance.get('/api/fantasy-teams/', { headers }),
+      axiosInstance.get('/api/matches/'),
+      axiosInstance.get('/api/cricket-teams/'),
     ])
       .then(([teamsRes, matchesRes, cricketTeamsRes]) => {
         const fantasyTeams = teamsRes.data.results || teamsRes.data
@@ -71,14 +72,14 @@ export default function ViewPoints() {
     const headers = { Authorization: `Bearer ${token}` }
     setLoadingSquad(true)
 
-    axios.get('http://localhost:8000/api/fantasy-team-players/', { headers })
+    axiosInstance.get('/api/fantasy-team-players/', { headers })
       .then(res => {
         const allRows = res.data.results || res.data
         const rows = allRows.filter(r => r.fantasy_team === currentTeam.fantasyTeamId)
 
         return Promise.all(
           rows.map(row =>
-            axios.get(`http://localhost:8000/api/players/${row.player}/`)
+            axiosInstance.get(`/api/players/${row.player}/`, { headers })
               .then(pRes => ({
                 ...pRes.data,
                 _isCaptain: row.is_captain,

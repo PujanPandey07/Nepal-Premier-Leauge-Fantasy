@@ -1,3 +1,4 @@
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from rest_framework import serializers
 from .models import (
@@ -213,3 +214,7 @@ class CustomRegisterSerializer(RegisterSerializer):
         user.name = self.cleaned_data.get('name')
         user.save()
         return user
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = 'email'

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/navbar'
+import  axiosInstance  from '../utilis/axiosInstance'
 
 function CricketTeams() {
     const [teams, setTeams] = useState([])
@@ -11,7 +12,7 @@ function CricketTeams() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        axios.get('http://localhost:8000/api/cricket-teams/')
+        axiosInstance.get('/api/cricket-teams/')
             .then(res => {
                 setTeams(res.data.results || res.data)
                 setNextPage(res.data.next)
@@ -23,7 +24,7 @@ function CricketTeams() {
 
     const goToPage = (url) => {
         if (!url) return
-        axios.get(url)
+        axiosInstance.get(url)
             .then(res => {
                 setTeams(res.data.results || res.data)
                 setNextPage(res.data.next)

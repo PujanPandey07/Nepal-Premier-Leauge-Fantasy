@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import Navbar from '../components/navbar'
+import  axiosInstance  from '../utilis/axiosInstance'
 
 function LeagueDetails() {
     const { leagueId } = useParams()
@@ -18,14 +19,14 @@ function LeagueDetails() {
     const [users, setUsers] = useState({})  // maps user id -> user name
 
     useEffect(() => {
-        const token = localStorage.getItem('token')
+        const token = localStorage.getItem('refreshtoken')
         if (!token) return
         const headers = { Authorization: `Bearer ${token}` }
         const currentUserId = JSON.parse(atob(token.split('.')[1])).user_id
 
         Promise.all([
-            axios.get(`http://localhost:8000/api/leagues/${leagueId}/`, { headers }),
-            axios.get(`http://localhost:8000/api/league-members/?league=${leagueId}`, { headers })
+            axiosInstance.get(`/api/leagues/${leagueId}/`, { headers }),
+            axiosInstance.get(`/api/league-members/?league=${leagueId}`, { headers })
                 .catch(() => ({ data: { results: [] } }))
         ])
             .then(([leagueRes, membersRes]) => {
@@ -46,7 +47,7 @@ function LeagueDetails() {
                 // UserPublicSerializer exposes id, name, profile_picture
                 return Promise.all(
                     memberList.map(m =>
-                        axios.get(`http://localhost:8000/api/users/${m.user}/`, { headers })
+                        axiosInstance.get(`/api/users/${m.user}/`, { headers })
                             .then(res => ({ id: m.user, name: res.data.name }))
                             .catch(() => ({ id: m.user, name: 'Unknown' }))
                     )
@@ -68,8 +69,8 @@ function LeagueDetails() {
         setError(null)
 
         try {
-            await axios.post(
-                'http://localhost:8000/api/leagues/join/',
+            await axiosInstance.post(
+                '/api/leagues/join/',
                 {
                     league_id: leagueId,
                     ...(league.is_public ? {} : { invite_code: inviteCode })
@@ -81,8 +82,8 @@ function LeagueDetails() {
 
             // Refresh both league data and members list
             const [leagueRes, membersRes] = await Promise.all([
-                axios.get(`http://localhost:8000/api/leagues/${leagueId}/`, { headers }),
-                axios.get(`http://localhost:8000/api/league-members/?league=${leagueId}`, { headers })
+                axiosInstance.get(`/api/leagues/${leagueId}/`, { headers }),
+                axiosInstance.get(`/api/league-members/?league=${leagueId}`, { headers })
             ])
             setLeague(leagueRes.data)
             setMembers(membersRes.data.results || membersRes.data || [])

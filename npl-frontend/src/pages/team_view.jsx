@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { ROLE_LIMITS } from '../context/TeamContext'
 import Navbar from '../components/navbar'
+import  axiosInstance  from '../utilis/axiosInstance'
 
 function ViewTeam() {
   const [match, setMatch] = useState(null)
@@ -16,7 +17,7 @@ function ViewTeam() {
   const [noTeam, setNoTeam] = useState(false)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('refreshtoken')
     if (!token) {
       setLoading(false)
       return
@@ -26,8 +27,8 @@ function ViewTeam() {
     // Step 1: find the closest match with an open deadline —
     // same rule as BuildTeamRedirect so both pages agree on "current match"
     Promise.all([
-      axios.get('http://localhost:8000/api/matches/'),
-      axios.get('http://localhost:8000/api/cricket-teams/'),
+      axiosInstance.get('/api/matches/'),
+      axiosInstance.get('/api/cricket-teams/'),
     ])
       .then(([matchesRes, teamsRes]) => {
         const allMatches = matchesRes.data.results || matchesRes.data
@@ -56,7 +57,7 @@ function ViewTeam() {
         setMatch(closest)
 
         // Step 2: check if the user has a saved fantasy team for this match
-        return axios.get('http://localhost:8000/api/fantasy-teams/', { headers })
+        return axiosInstance.get('/api/fantasy-teams/', { headers })
           .then(res => {
             const fantasyTeams = res.data.results || res.data
             const existing = fantasyTeams.find(t => t.match === closest.id)
@@ -70,14 +71,14 @@ function ViewTeam() {
             setTeamName(existing.name)
 
             // Step 3: load the 11 players for this team
-            return axios.get('http://localhost:8000/api/fantasy-team-players/', { headers })
+            return axiosInstance.get('/api/fantasy-team-players/', { headers })
               .then(res2 => {
                 const allRows = res2.data.results || res2.data
                 const rows = allRows.filter(r => r.fantasy_team === existing.id)
 
                 return Promise.all(
                   rows.map(row =>
-                    axios.get(`http://localhost:8000/api/players/${row.player}/`)
+                    axiosInstance.get(`/api/players/${row.player}/`, { headers })
                       .then(pRes => ({
                         ...pRes.data,
                         credit_value: Number(pRes.data.credit_value),

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import axios from 'axios'
 import Navbar from '../components/navbar'
+import  axiosInstance  from '../utilis/axiosInstance'
 
 function CricketTeamDetail() {
     const { teamId } = useParams()
@@ -13,8 +14,8 @@ function CricketTeamDetail() {
 
     useEffect(() => {
         Promise.all([
-            axios.get(`http://localhost:8000/api/cricket-teams/${teamId}/`),
-            axios.get(`http://localhost:8000/api/players/?team=${teamId}`),
+            axiosInstance.get(`/api/cricket-teams/${teamId}/`),
+            axiosInstance.get(`/api/players/?team=${teamId}`),
         ])
             .then(([teamRes, playersRes]) => {
                 setTeam(teamRes.data)

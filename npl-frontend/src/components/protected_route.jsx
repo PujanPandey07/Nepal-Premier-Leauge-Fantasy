@@ -4,7 +4,7 @@
 import { Link } from 'react-router-dom'
 
 export default function ProtectedRoute({ children }) {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('refreshtoken')
 
     if (!token) {
         return (

@@ -96,6 +96,8 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
 }
 
 # ── DRF ──────────────────────────────────────────────
@@ -128,6 +130,9 @@ REST_AUTH = {
     'REGISTER_SERIALIZER': 'core.serializers.CustomRegisterSerializer',
     'USE_JWT': True,
     'JWT_AUTH_COOKIE': 'jwt-auth',
+    'JWT_AUTH_REFRESH_COOKIE': 'jwt-refresh-auth',  # enables refresh token
+    # returns expiration times in response
+    'JWT_AUTH_RETURN_EXPIRATION': True,
 }
 
 # ── Redis / Celery ────────────────────────────────────

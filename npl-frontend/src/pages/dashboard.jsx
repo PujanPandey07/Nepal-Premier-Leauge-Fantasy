@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Navbar from '../components/navbar'
+import  axiosInstance  from '../utilis/axiosInstance'
+
 
 export default function Dashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -26,10 +28,10 @@ export default function Dashboard() {
 
     // These fetches run for everyone — public info
     Promise.all([
-      axios.get('http://localhost:8000/api/matches/'),
-      axios.get('http://localhost:8000/api/cricket-teams/'),
-      axios.get('http://localhost:8000/api/leagues/'),
-      axios.get('http://localhost:8000/api/players/?ordering=-credit_value'),
+      axiosInstance.get('/api/matches/'),
+      axiosInstance.get('/api/cricket-teams/'),
+      axiosInstance.get('/api/leagues/'),
+      axiosInstance.get('/api/players/?ordering=-credit_value'),
     ])
       .then(([matchesRes, teamsRes, leaguesRes, playersRes]) => {
         const allMatches = matchesRes.data.results || matchesRes.data
@@ -71,8 +73,8 @@ export default function Dashboard() {
     // These fetches only run for logged-in users
     if (token) {
       Promise.all([
-        axios.get('http://localhost:8000/api/fantasy-teams/', { headers }),
-        axios.get('http://localhost:8000/api/league-members/', { headers })
+        axiosInstance.get('/api/fantasy-teams/', { headers }),
+        axiosInstance.get('/api/league-members/', { headers })
           .catch(() => ({ data: { results: [] } })),
       ])
         .then(([fantasyTeamsRes, membersRes]) => {
@@ -99,7 +101,7 @@ export default function Dashboard() {
           const myLeagueIds = members.map(m => m.league)
           const currentUserId = JSON.parse(atob(token.split('.')[1])).user_id
 
-          axios.get('http://localhost:8000/api/leagues/', { headers })
+          axiosInstance.get('/api/leagues/', { headers })
             .then(res => {
               const all = res.data.results || res.data
               const mine = all.filter(l =>

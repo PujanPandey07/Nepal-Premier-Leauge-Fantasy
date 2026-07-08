@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import Navbar from '../components/navbar'
+import  axiosInstance  from '../utilis/axiosInstance'
 
 function PlayersDetail() {
     const { id } = useParams()
@@ -9,10 +10,10 @@ function PlayersDetail() {
     const [teammates, setTeammates] = useState([])
 
     useEffect(() => {
-        axios.get(`http://localhost:8000/api/players/${id}/`)
+        axiosInstance.get(`/api/players/${id}/`)
             .then(res => {
                 setPlayer(res.data)
-                axios.get('http://localhost:8000/api/players/')
+                axiosInstance.get('/api/players/')
                     .then(allRes => {
                         const others = allRes.data.results.filter(
                             p => p.team === res.data.team && p.id !== res.data.id
