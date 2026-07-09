@@ -1,7 +1,6 @@
 // Dashboard.jsx
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import axios from 'axios'
 import Navbar from '../components/navbar'
 import  axiosInstance  from '../utilis/axiosInstance'
 
@@ -22,9 +21,9 @@ export default function Dashboard() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('refreshtoken')
     setIsLoggedIn(!!token)
-    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    
 
     // These fetches run for everyone — public info
     Promise.all([
@@ -73,8 +72,8 @@ export default function Dashboard() {
     // These fetches only run for logged-in users
     if (token) {
       Promise.all([
-        axiosInstance.get('/api/fantasy-teams/', { headers }),
-        axiosInstance.get('/api/league-members/', { headers })
+        axiosInstance.get('/api/fantasy-teams/'),
+        axiosInstance.get('/api/league-members/')
           .catch(() => ({ data: { results: [] } })),
       ])
         .then(([fantasyTeamsRes, membersRes]) => {
@@ -101,7 +100,7 @@ export default function Dashboard() {
           const myLeagueIds = members.map(m => m.league)
           const currentUserId = JSON.parse(atob(token.split('.')[1])).user_id
 
-          axiosInstance.get('/api/leagues/', { headers })
+          axiosInstance.get('/api/leagues/')
             .then(res => {
               const all = res.data.results || res.data
               const mine = all.filter(l =>

@@ -14,6 +14,8 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'),
          name='swagger-ui'),
     path('api/', include('core.urls')),
+    path("accounts/", include("allauth.urls")),
+
 
     # allauth/dj-rest-auth endpoints
     # login, logout, password reset

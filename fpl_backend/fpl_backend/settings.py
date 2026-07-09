@@ -69,6 +69,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'fpl_backend.wsgi.application'
+SITE_ID = 1
 
 DATABASES = {
     'default': {
@@ -187,6 +188,7 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
+LOGIN_REDIRECT_URL = "/"
 
 STATIC_URL = 'static/'
 AUTH_USER_MODEL = 'core.User'
