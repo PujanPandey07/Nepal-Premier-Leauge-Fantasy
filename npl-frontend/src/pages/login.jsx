@@ -19,13 +19,11 @@ function Login() {
         email,
         password,
       })
-      // Store both tokens — access for API calls, refresh to get new access tokens
       localStorage.setItem('token', response.data.access)
       localStorage.setItem('refreshtoken', response.data.refresh)
-      window.location.href = '/' 
+      window.location.href = '/'
     } catch (error) {
       const data = error.response?.data
-      // Show first error message from backend
       setError(
         typeof data === 'object'
           ? Object.values(data)[0]
@@ -72,6 +70,29 @@ function Login() {
         >
           {loading ? 'Logging in...' : 'Login'}
         </button>
+
+        {/* Divider */}
+        <div className="mt-4">
+          <div className="relative flex items-center justify-center mb-4">
+            <div className="border-t border-gray-300 w-full"></div>
+            <span className="bg-white px-3 text-sm text-gray-500 absolute">or</span>
+          </div>
+
+          {/* Google login button — plain <a> tag since it's a full page redirect */}
+          
+          <a  href="http://localhost:8000/accounts/google/login/"
+            className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded px-4 py-2 hover:bg-gray-50 text-sm font-medium text-gray-700">
+          
+            <img
+              src="https://developers.google.com/identity/images/g-logo.png"
+              alt="Google"
+              className="w-5 h-5"
+            />
+            Continue with Google
+
+            </a>
+          
+        </div>
 
         <p className="text-sm text-center text-gray-500 mt-4">
           Don't have an account?{' '}

@@ -2,7 +2,8 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
-from core.views import CustomTokenObtainPairView
+from core.views import CustomTokenObtainPairView, GoogleLoginCompleteView
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -14,6 +15,9 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'),
          name='swagger-ui'),
     path('api/', include('core.urls')),
+
+
+    path('auth/complete/', GoogleLoginCompleteView.as_view()),
     path("accounts/", include("allauth.urls")),
 
 

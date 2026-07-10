@@ -16,6 +16,7 @@ import LeagueDetails from "./pages/league_details";
 import ProtectedRoute from "./components/protected_route";
 import CricketTeams from "./pages/cricket_teams";
 import CricketTeamDetail from "./pages/cricket_teams_detail";
+import AuthCallback from './pages/authcallback';
 // Only build-team routes need TeamProvider now
 function TeamLayout() {
   return (
@@ -45,6 +46,7 @@ function App() {
         <Route path="/players/:id" element={<PlayersDetail />} />
         <Route path="/cricket-teams" element={<CricketTeams />} />
         <Route path="/cricket-teams/:teamId" element={<CricketTeamDetail />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* Protected routes — login required */}
         <Route path="/view-team" element={

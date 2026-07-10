@@ -1,5 +1,9 @@
 
 
+from django.contrib.auth import get_user_model
+from django.shortcuts import redirect
+from rest_framework_simplejwt.tokens import RefreshToken
+from allauth.socialaccount.models import SocialAccount
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
 from .permissions import IsAdminOrReadOnly, IsAuthenticated
@@ -294,3 +298,32 @@ class VerifyPaymentView(APIView):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+
+# views.py
+
+
+User = get_user_model()
+
+
+class GoogleLoginCompleteView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        # allauth uses Django sessions, not JWT — so we read from session
+        user_id = request.session.get('_auth_user_id')
+        if not user_id:
+            return redirect('http://localhost:5173/login?error=auth_failed')
+
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return redirect('http://localhost:5173/login?error=auth_failed')
+
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        return redirect(
+            f'http://localhost:5173/auth/callback?access={access_token}&refresh={refresh_token}'
+        )

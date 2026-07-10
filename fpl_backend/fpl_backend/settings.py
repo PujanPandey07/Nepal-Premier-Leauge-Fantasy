@@ -182,6 +182,9 @@ if 'test' in sys.argv:
     CELERY_BROKER_URL = 'memory://'
     CELERY_RESULT_BACKEND = 'cache+memory://'
 ACCOUNT_EMAIL_VERIFICATION = 'none'
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_REQUIRED = False
+ACCOUNT_EMAIL_REQUIRED = False
 
 # ── Internationalization ──────────────────────────────
 LANGUAGE_CODE = 'en-us'
@@ -189,6 +192,9 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 LOGIN_REDIRECT_URL = "/"
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http'
+LOGIN_REDIRECT_URL = '/auth/complete/'
+SOCIALACCOUNT_LOGIN_ON_GET = True
 
 STATIC_URL = 'static/'
 AUTH_USER_MODEL = 'core.User'
