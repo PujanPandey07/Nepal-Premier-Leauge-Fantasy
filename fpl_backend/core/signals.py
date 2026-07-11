@@ -1,3 +1,4 @@
+from allauth.socialaccount.signals import social_account_added, pre_social_login
 from allauth.account.signals import user_signed_up
 from .tasks import send_welcome_email
 from django.db.models.signals import post_delete, post_save
@@ -119,3 +120,15 @@ def update_fantasy_team_budget(sender, instance, **kwargs):
 @receiver(user_signed_up)
 def on_user_signed_up(request, user, **kwargs):
     send_welcome_email.delay(user.id)
+
+
+@receiver(pre_social_login)
+def populate_user_from_google(sender, request, sociallogin, **kwargs):
+    user = sociallogin.user
+    if not user.name:
+        extra_data = sociallogin.account.extra_data
+        user.name = extra_data.get(
+            'name', '') or extra_data.get('given_name', '')
+        # Don't call user.save() here — allauth will handle saving the user.
+        # Calling save() at this point causes an INSERT instead of UPDATE
+        # for existing users, hitting the unique email constraint.

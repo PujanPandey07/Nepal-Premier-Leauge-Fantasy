@@ -255,9 +255,12 @@ class InitiatePaymentView(APIView):
         if not amount:
             return Response({'detail': 'Amount required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # amount comes in paisa — convert to NPR for storing
+        amount_in_npr = int(amount) / 100
+
         transaction = Transaction.objects.create(
             user=request.user,
-            amount=amount,
+            amount=amount_in_npr,
             type='credit',
             status='pending',
             payment_method='khalti'
@@ -274,26 +277,29 @@ class InitiatePaymentView(APIView):
 
 
 class VerifyPaymentView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # public — Khalti redirect has no JWT token
 
     def get(self, request):
         pidx = request.query_params.get('pidx')
+        if not pidx:
+            return redirect('http://localhost:5173/wallet?status=failed')
+
         response = verify_payment(pidx)
         transaction = get_object_or_404(Transaction, reference_id=pidx)
+
         if response.get('status') == 'Completed':
             transaction.status = 'completed'
-            transaction.reference_id = response.get('pidx')
             transaction.save()
 
-            User.objects.filter(pk=request.user.pk).update(
+            User.objects.filter(pk=transaction.user.pk).update(
                 wallet_balance=F('wallet_balance') + transaction.amount
             )
-            request.user.save()
-            return Response({'detail': 'Payment verified and wallet updated.'})
+            # Redirect to frontend wallet page with success message
+            return redirect('http://localhost:5173/wallet?status=success')
         else:
             transaction.status = 'failed'
             transaction.save()
-            return Response({'detail': 'Payment verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
+            return redirect('http://localhost:5173/wallet?status=failed')
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -327,3 +333,26 @@ class GoogleLoginCompleteView(APIView):
         return redirect(
             f'http://localhost:5173/auth/callback?access={access_token}&refresh={refresh_token}'
         )
+
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from .serializers import UserPrivateSerializer
+        serializer = UserPrivateSerializer(request.user)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        from .serializers import UserPrivateSerializer
+        # partial=True means only the fields sent will be updated
+        # wallet_balance is read_only so users can't manually set it
+        serializer = UserPrivateSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

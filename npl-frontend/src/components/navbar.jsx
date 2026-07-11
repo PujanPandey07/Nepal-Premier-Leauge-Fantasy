@@ -1,9 +1,18 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import axiosInstance from '../utilis/axiosInstance'
 
 function Navbar() {
   const navigate = useNavigate()
-  const token = localStorage.getItem('refreshtoken')
-  const isLoggedIn = !!token
+  const isLoggedIn = !!localStorage.getItem('refreshtoken')
+  const [balance, setBalance] = useState(null)
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+    axiosInstance.get('/api/users/me/')
+      .then(res => setBalance(res.data.wallet_balance))
+      .catch(() => {})
+  }, [isLoggedIn])
 
   const handleLogout = () => {
     localStorage.removeItem('refreshtoken')
@@ -21,8 +30,6 @@ function Navbar() {
         <Link to="/matches" className="hover:text-yellow-400">Matches</Link>
         <Link to="/leagues" className="hover:text-yellow-400">Leagues</Link>
         <Link to="/cricket-teams" className="hover:text-yellow-400">Teams</Link>
-
-        {/* Only show these links when logged in */}
         {isLoggedIn && (
           <>
             <Link to="/build-team" className="hover:text-yellow-400">Build Team</Link>
@@ -34,7 +41,17 @@ function Navbar() {
 
       <div className="flex gap-4 items-center text-sm">
         {isLoggedIn ? (
-          <button onClick={handleLogout} className="hover:text-red-400">Logout</button>
+          <>
+            {/* Wallet balance — links to wallet page */}
+            <Link
+              to="/wallet"
+              className="flex items-center gap-1 bg-slate-700 px-3 py-1 rounded-lg hover:bg-slate-600"
+            >
+              <span className="text-yellow-400 font-bold">NPR</span>
+              <span>{balance !== null ? Number(balance).toFixed(2) : '...'}</span>
+            </Link>
+            <button onClick={handleLogout} className="hover:text-red-400">Logout</button>
+          </>
         ) : (
           <>
             <Link to="/login" className="hover:text-yellow-400">Login</Link>

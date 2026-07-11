@@ -61,7 +61,7 @@ class UserPrivateSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'email', 'phone_no',
                   'profile_picture', 'wallet_balance',
                   'is_verified', 'created_at']
-        read_only_fields = ['id', 'wallet_balance',
+        read_only_fields = ['id',
                             'is_verified', 'created_at']
 
 

@@ -9,11 +9,12 @@ KHALTI_LOOKUP_URL = 'https://dev.khalti.com/api/v2/epayment/lookup/'
 
 
 def initiate_payment(amount, transaction_id, user, return_url):
-    # mock response simulating Khalti
     short_id = str(transaction_id)[:8]
+    pidx = f'mock_pidx_{short_id}'
     return {
-        'pidx': f'mock_pidx_{short_id}',
-        'payment_url': f'http://localhost:8000/api/payments/verify/?pidx=mock_pidx_{short_id}&status=Completed'
+        'pidx': pidx,
+        # Point to our frontend mock payment page instead of verify directly
+        'payment_url': f'http://localhost:5173/mock-payment?pidx={pidx}&amount={amount}'
     }
 
 

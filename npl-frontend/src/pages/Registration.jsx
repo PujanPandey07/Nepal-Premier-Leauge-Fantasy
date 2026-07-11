@@ -128,9 +128,10 @@ function Registration() {
             <div className="border-t border-gray-300 w-full"></div>
             <span className="bg-white px-3 text-sm text-gray-500 absolute">or</span>
           </div>
+          {/* Google login button — plain <a> tag since it's a full page redirect */}
           
-            href="http://localhost:8000/accounts/google/login/"
-            className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded px-4 py-2 hover:bg-gray-50 text-sm font-medium text-gray-700"
+          <a  href="http://localhost:8000/accounts/google/login/"
+            className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded px-4 py-2 hover:bg-gray-50 text-sm font-medium text-gray-700">
           
             <img
               src="https://developers.google.com/identity/images/g-logo.png"
@@ -138,6 +139,8 @@ function Registration() {
               className="w-5 h-5"
             />
             Continue with Google
+
+            </a>
           
         </div>
 

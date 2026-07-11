@@ -17,6 +17,12 @@ import ProtectedRoute from "./components/protected_route";
 import CricketTeams from "./pages/cricket_teams";
 import CricketTeamDetail from "./pages/cricket_teams_detail";
 import AuthCallback from './pages/authcallback';
+import Wallet from './pages/wallet'
+import MockPayment from './pages/mock_payment'
+
+
+
+
 // Only build-team routes need TeamProvider now
 function TeamLayout() {
   return (
@@ -47,6 +53,7 @@ function App() {
         <Route path="/cricket-teams" element={<CricketTeams />} />
         <Route path="/cricket-teams/:teamId" element={<CricketTeamDetail />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/mock-payment" element={<MockPayment />} />
 
         {/* Protected routes — login required */}
         <Route path="/view-team" element={
@@ -55,6 +62,10 @@ function App() {
         <Route path="/view-points" element={
           <ProtectedRoute><ViewPoints /></ProtectedRoute>
         } />
+        
+       <Route path="/wallet" element={
+       <ProtectedRoute><Wallet /></ProtectedRoute>
+       } />
 
         {/* build-team/* is protected + needs TeamProvider */}
         <Route path="/*" element={
