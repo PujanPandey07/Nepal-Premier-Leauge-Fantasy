@@ -1,0 +1,8 @@
+# Never bring these into the image
+venv/
+env/
+__pycache__/
+*.pyc
+.env
+.git/
+db.sqlite3
