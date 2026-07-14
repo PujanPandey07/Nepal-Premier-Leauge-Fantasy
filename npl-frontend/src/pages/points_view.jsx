@@ -1,7 +1,7 @@
 // ViewPoints.jsx
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { ROLE_LIMITS } from '../context/TeamContext'
+import { ROLE_LIMITS } from '../context/teamcontext'
 import  axiosInstance  from '../utilis/axiosInstance'
 
 export default function ViewPoints() {

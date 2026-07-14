@@ -1,7 +1,7 @@
 // Players.jsx
 import { useEffect, useState, useContext } from 'react'
 import axios from 'axios'
-import { TeamContext, ROLE_LIMITS } from '../context/TeamContext'
+import { TeamContext, ROLE_LIMITS } from '../context/teamcontext'
 import { Link, useSearchParams, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/navbar'
 import  axiosInstance  from '../utilis/axiosInstance'

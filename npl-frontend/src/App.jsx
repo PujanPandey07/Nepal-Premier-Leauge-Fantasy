@@ -4,7 +4,7 @@ import Dashboard from "./pages/dashboard";
 import Players from "./pages/players";
 import Registration from "./pages/Registration";
 import PlayersDetail from "./pages/players_detail";
-import { TeamProvider } from "./context/TeamContext";
+import { TeamProvider } from "./context/teamcontext";
 import TeamBuilder from "./pages/teambuilder";
 import ViewTeam from "./pages/team_view";
 import Matches from "./pages/matches";

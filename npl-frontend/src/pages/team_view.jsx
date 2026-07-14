@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
-import { ROLE_LIMITS } from '../context/TeamContext'
+import { ROLE_LIMITS } from '../context/teamcontext'
 import Navbar from '../components/navbar'
 import  axiosInstance  from '../utilis/axiosInstance'
 

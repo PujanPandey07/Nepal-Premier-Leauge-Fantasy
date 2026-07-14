@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import axios from 'axios'
-import Navbar from '../components/Navbar'
+import Navbar from '../components/navbar'
 import  axiosInstance  from '../utilis/axiosInstance'
 
 function MatchDetail() {
