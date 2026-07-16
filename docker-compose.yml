@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  django:
+    build:
+      context: ./fpl_backend
+    container_name: django
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    ports:
+      - "8000:8000"
+
+  celery:
+    build:
+      context: ./fpl_backend
+    container_name: celery
+    env_file:
+      - .env
+    command: celery -A fpl_backend worker -l info
+    depends_on:
+      - postgres
+
+  frontend:
+    build:
+      context: ./npl-frontend
+    container_name: frontend
+    depends_on:
+      - django
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:
