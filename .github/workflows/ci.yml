@@ -1,8 +1,5 @@
-# CI pipeline — automatically builds our Docker images and runs
-# our Django test suite on every push, catching broken code
-# before it sits unnoticed in the repo.
-
 name: CI
+
 on:
   push:
     branches: [Master]
@@ -10,9 +7,9 @@ on:
     branches: [Master]
 
 jobs:
-  ## Django docker image build and test
   django-build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
