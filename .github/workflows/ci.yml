@@ -10,12 +10,12 @@ on:
     branches: [Master]
 
 jobs:
+  ## Django docker image build and test
   django-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-      uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Build django-image
-      run: docker build -t npl-django ./fpl_backend
-  
+        run: docker build -t npl-django ./fpl_backend
