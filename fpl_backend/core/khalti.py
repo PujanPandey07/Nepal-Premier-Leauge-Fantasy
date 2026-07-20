@@ -14,7 +14,7 @@ def initiate_payment(amount, transaction_id, user, return_url):
     return {
         'pidx': pidx,
         # Point to our frontend mock payment page instead of verify directly
-        'payment_url': f'http://localhost:5173/mock-payment?pidx={pidx}&amount={amount}'
+        'payment_url': f'http://localhost/mock-payment?pidx={pidx}&amount={amount}'
     }
 
 

@@ -69,7 +69,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'fpl_backend.wsgi.application'
-SITE_ID = 1
+
 
 DATABASES = {
     'default': {
@@ -118,10 +118,10 @@ REST_FRAMEWORK = {
 }
 
 # ── allauth ──────────────────────────────────────────
-SITE_ID = 1
+SITE_ID = 2
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_LOGIN_METHODS = {'email'}
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'name*', 'password1*', 'password2*']
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'name*']
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 
 REST_USE_JWT = True
@@ -193,6 +193,7 @@ SOCIALACCOUNT_PROVIDERS = {
         'AUTH_PARAMS': {'access_type': 'online'},
     }
 }
+SOCIALACCOUNT_ADAPTER = 'core.adapters.CustomSocialAccountAdapter'
 
 # ── Internationalization ──────────────────────────────
 LANGUAGE_CODE = 'en-us'

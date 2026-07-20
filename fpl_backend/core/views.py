@@ -282,7 +282,7 @@ class VerifyPaymentView(APIView):
     def get(self, request):
         pidx = request.query_params.get('pidx')
         if not pidx:
-            return redirect('http://localhost:5173/wallet?status=failed')
+            return redirect('http://localhost/wallet?status=failed')
 
         response = verify_payment(pidx)
         transaction = get_object_or_404(Transaction, reference_id=pidx)
@@ -295,11 +295,11 @@ class VerifyPaymentView(APIView):
                 wallet_balance=F('wallet_balance') + transaction.amount
             )
             # Redirect to frontend wallet page with success message
-            return redirect('http://localhost:5173/wallet?status=success')
+            return redirect('http://localhost/wallet?status=success')
         else:
             transaction.status = 'failed'
             transaction.save()
-            return redirect('http://localhost:5173/wallet?status=failed')
+            return redirect('http://localhost/wallet?status=failed')
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -319,19 +319,19 @@ class GoogleLoginCompleteView(APIView):
         # allauth uses Django sessions, not JWT — so we read from session
         user_id = request.session.get('_auth_user_id')
         if not user_id:
-            return redirect('http://localhost:5173/login?error=auth_failed')
+            return redirect('http://localhost/login?error=auth_failed')
 
         try:
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
-            return redirect('http://localhost:5173/login?error=auth_failed')
+            return redirect('http://localhost/login?error=auth_failed')
 
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
         return redirect(
-            f'http://localhost:5173/auth/callback?access={access_token}&refresh={refresh_token}'
+            f'http://localhost/auth/callback?access={access_token}&refresh={refresh_token}'
         )
 
 
