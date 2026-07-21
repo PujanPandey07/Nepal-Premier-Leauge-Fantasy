@@ -180,7 +180,16 @@ class LeagueView(viewsets.ModelViewSet):
     def join(self, request):
         league_id = request.data.get('league_id')
         invite_code = request.data.get('invite_code')
-        league = get_object_or_404(League, pk=league_id)
+
+        if league_id:
+            league = get_object_or_404(League, pk=league_id)
+        elif invite_code:
+            league = get_object_or_404(League, invite_code=invite_code)
+        else:
+            return Response(
+                {'detail': 'league_id or invite_code required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if LeagueMember.objects.filter(user=request.user, league=league).exists():
             return Response({'detail': 'Already a member.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -191,7 +200,6 @@ class LeagueView(viewsets.ModelViewSet):
         if league.status != 'open':
             return Response({'detail': 'League is not open.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Private leagues require invite code, public leagues don't
         if not league.is_public:
             if not invite_code or invite_code != league.invite_code:
                 return Response(
