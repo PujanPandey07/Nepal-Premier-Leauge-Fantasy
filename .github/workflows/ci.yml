@@ -16,3 +16,11 @@ jobs:
 
       - name: Build django-image
         run: docker build -t npl-django ./fpl_backend
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build frontend image
+        run: docker build -t npl-frontend ./npl-frontend
