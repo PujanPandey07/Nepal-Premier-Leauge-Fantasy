@@ -4,7 +4,7 @@ from rest_framework import serializers
 from .models import (
     Player, Match, Sport, League, Tournament,
     Fantasy_Team, Fantasy_Team_Player, LeagueMember,
-    User, Cricket_Team, Player_Match_Performance, Transaction
+    User, Cricket_Team, Player_Match_Performance, Transaction, Innings, News
 )
 import secrets
 from django.db.models import Sum
@@ -47,6 +47,58 @@ class PlayerMatchPerformanceSerializer(serializers.ModelSerializer):
         model = Player_Match_Performance
         fields = '__all__'
         read_only_fields = ['fantasy_points']
+
+
+# --- Scorecard-specific serializers ---
+# Separate from PlayerMatchPerformanceSerializer above so we don't disturb
+# wherever that one's already used for plain CRUD elsewhere in the app.
+
+class ScorecardPerformanceSerializer(serializers.ModelSerializer):
+    player_name = serializers.CharField(source='player.name', read_only=True)
+
+    class Meta:
+        model = Player_Match_Performance
+        fields = [
+            'player', 'player_name', 'runs_scored', 'balls_faced', 'fours',
+            'sixes', 'strike_rate', 'wickets_taken', 'economy_rate',
+            'maidens', 'catches', 'stumpings', 'run_outs', 'fantasy_points',
+        ]
+        read_only_fields = ['fantasy_points']
+
+
+class InningSerializer(serializers.ModelSerializer):
+    batting_team_name = serializers.CharField(
+        source='batting_team.name', read_only=True)
+    performances = ScorecardPerformanceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Innings
+        fields = [
+            'id', 'innings_number', 'batting_team', 'batting_team_name',
+            'total_runs', 'total_wickets', 'overs', 'extras',
+            'is_complete', 'performances',
+        ]
+
+
+class MatchScorecardSerializer(serializers.ModelSerializer):
+    home_team_name = serializers.CharField(
+        source='home_team.name', read_only=True)
+    away_team_name = serializers.CharField(
+        source='away_team.name', read_only=True)
+    innings = InningSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Match
+        fields = [
+            'id', 'home_team', 'home_team_name', 'away_team', 'away_team_name',
+            'match_date', 'venue', 'status', 'result', 'innings',
+        ]
+
+
+class NewsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = News
+        fields = '__all__'
 
 
 class UserPublicSerializer(serializers.ModelSerializer):

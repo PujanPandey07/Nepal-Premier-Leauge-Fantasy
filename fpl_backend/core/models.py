@@ -119,6 +119,7 @@ class Match(models.Model):
         Cricket_Team, on_delete=models.CASCADE, related_name='away_matches')
     match_date = models.DateTimeField()
     venue = models.CharField(max_length=100)
+    cricbuzz_match_id = models.IntegerField(unique=True, null=True, blank=True)
     status = models.CharField(max_length=20, choices=[
         ('upcoming', 'Upcoming'),
         ('live', 'Live'),
@@ -129,6 +130,20 @@ class Match(models.Model):
 
     def __str__(self):
         return f"{self.home_team} vs {self.away_team} on {self.match_date.strftime('%Y-%m-%d %H:%M')}"
+
+
+class Innings(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    match = models.ForeignKey(
+        Match, on_delete=models.CASCADE, related_name='innings')
+    innings_number = models.IntegerField()  # 1 or 2
+    batting_team = models.ForeignKey(Cricket_Team, on_delete=models.CASCADE)
+    total_runs = models.IntegerField(default=0)
+    total_wickets = models.IntegerField(default=0)
+    overs = models.DecimalField(max_digits=4, decimal_places=1, default=0.0)
+    extras = models.IntegerField(default=0)
+    # <- the key field for your "update after innings ends" requirement
+    is_complete = models.BooleanField(default=False)
 
 
 class Player(models.Model):
@@ -142,6 +157,7 @@ class Player(models.Model):
     bowling_style = models.CharField(max_length=20)
     credit_value = models.DecimalField(max_digits=10, decimal_places=2)
     nationality = models.CharField(max_length=50)
+    cricbuzz_id = models.IntegerField(unique=True, null=True, blank=True)
     image_url = models.URLField(blank=True, null=True)
     is_available = models.BooleanField(default=True)
 
@@ -279,3 +295,15 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.user.name} - {self.amount}"
+
+
+class News(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name='news')
+    title = models.CharField(max_length=200)
+    summary = models.TextField()
+    source_name = models.CharField(max_length=100)
+    source_url = models.URLField()
+    image_url = models.URLField(blank=True, null=True)
+    published_at = models.DateTimeField()

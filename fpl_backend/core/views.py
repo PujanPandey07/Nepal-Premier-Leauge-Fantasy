@@ -1,5 +1,3 @@
-
-
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -21,13 +19,14 @@ from rest_framework.exceptions import ValidationError
 from .models import (
     Player, Match, Sport, League, Tournament,
     Fantasy_Team, Fantasy_Team_Player,
-    User, Cricket_Team, Player_Match_Performance, Transaction, LeagueMember, League
+    User, Cricket_Team, Player_Match_Performance, Transaction, LeagueMember, League, News
 )
 from rest_framework.decorators import action
 from .serializers import (
     PlayerSerializer, MatchSerializer, SportSerializer, LeagueSerializer, TournamentSerializer,
     FantasyTeamSerializer, FantasyTeamPlayerSerializer, UserPublicSerializer,
-    CricketTeamSerializer, PlayerMatchPerformanceSerializer, TransactionSerializer, UserRegistrationSerializer, LeagueMemberSerializer
+    CricketTeamSerializer, PlayerMatchPerformanceSerializer, TransactionSerializer, UserRegistrationSerializer, LeagueMemberSerializer,
+    MatchScorecardSerializer, NewsSerializer
 )
 from .permissions import IsAdminOrReadOnly, IsOwnerOrAdmin, IsAuthenticated, IsLeagueOwnerOrAdmin
 from django.utils import timezone
@@ -101,6 +100,16 @@ class MatchView(CacheInvalidateMixin, viewsets.ModelViewSet):
         )
         cache.delete(self.cache_key)
 
+    @action(detail=True, methods=['get'], url_path='scorecard')
+    def scorecard(self, request, pk=None):
+        # prefetch_related avoids N+1 queries across innings -> performances -> player
+        match = get_object_or_404(
+            Match.objects.prefetch_related('innings__performances__player'),
+            pk=pk
+        )
+        serializer = MatchScorecardSerializer(match)
+        return Response(serializer.data)
+
 
 class MatchPerformanceView(viewsets.ModelViewSet):
     queryset = Player_Match_Performance.objects.all()
@@ -112,6 +121,17 @@ class MatchPerformanceView(viewsets.ModelViewSet):
                      'match__away_team__name', 'player__name']
     ordering_fields = ['fantasy_points', 'runs_scored', 'wickets_taken',
                        'catches', 'stumpings', 'economy_rate', 'run_outs']
+    pagination_class = StandardPagination
+
+
+class NewsView(CacheInvalidateMixin, viewsets.ModelViewSet):
+    cache_key = 'news_list'
+    queryset = News.objects.all().order_by('-published_at')
+    serializer_class = NewsSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    filterset_fields = ['tournament']
+    search_fields = ['title', 'source_name']
+    ordering_fields = ['published_at']
     pagination_class = StandardPagination
 
 
