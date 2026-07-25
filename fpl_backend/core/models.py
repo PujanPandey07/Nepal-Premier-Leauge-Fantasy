@@ -152,9 +152,9 @@ class Player(models.Model):
     team = models.ForeignKey(
         Cricket_Team, on_delete=models.CASCADE, related_name='players')
     name = models.CharField(max_length=100)
-    role = models.CharField(max_length=20)
-    batting_style = models.CharField(max_length=20)
-    bowling_style = models.CharField(max_length=20)
+    role = models.CharField(max_length=100)
+    batting_style = models.CharField(max_length=100)
+    bowling_style = models.CharField(max_length=100)
     credit_value = models.DecimalField(max_digits=10, decimal_places=2)
     nationality = models.CharField(max_length=50)
     cricbuzz_id = models.IntegerField(unique=True, null=True, blank=True)

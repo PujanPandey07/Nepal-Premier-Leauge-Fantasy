@@ -36,10 +36,26 @@ class PlayerSerializer(serializers.ModelSerializer):
 
 
 class MatchSerializer(serializers.ModelSerializer):
+    home_team_name = serializers.CharField(
+        source='home_team.name', read_only=True)
+    away_team_name = serializers.CharField(
+        source='away_team.name', read_only=True)
+    score_summary = serializers.SerializerMethodField()
+
     class Meta:
         model = Match
         fields = '__all__'
         read_only_fields = ['result']
+
+    def get_score_summary(self, obj):
+        innings = obj.innings.all().order_by('innings_number')
+        if not innings:
+            return None
+        return [
+            {'team': i.batting_team.name, 'runs': i.total_runs,
+                'wickets': i.total_wickets, 'overs': str(i.overs)}
+            for i in innings
+        ]
 
 
 class PlayerMatchPerformanceSerializer(serializers.ModelSerializer):

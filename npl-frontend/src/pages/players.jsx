@@ -21,6 +21,18 @@ function Players({ showAddButton = false }) {
     const [searchTerm, setSearchTerm] = useState('')
     const [minPrice, setMinPrice] = useState('')
     const [maxPrice, setMaxPrice] = useState('')
+    const [cricketTeams, setCricketTeams] = useState({})
+
+    useEffect(() => {
+        axiosInstance.get('/api/cricket-teams/')
+            .then(res => {
+                const list = res.data.results || res.data
+                const map = {}
+                list.forEach(t => { map[t.id] = t.name })
+                setCricketTeams(map)
+            })
+            .catch(error => console.error('Error fetching teams:', error))
+    }, [])
 
     useEffect(() => {
         // In team-building mode (showAddButton=true): wait for match to load
@@ -109,8 +121,9 @@ function Players({ showAddButton = false }) {
             </div>
 
             <div className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="grid grid-cols-5 bg-gray-800 text-white text-sm font-semibold p-4">
+                <div className="grid grid-cols-6 bg-gray-800 text-white text-sm font-semibold p-4">
                     <span>Player</span>
+                    <span>Team</span>
                     <span>Role</span>
                     <span>Batting</span>
                     <span>Bowling</span>
@@ -126,9 +139,10 @@ function Players({ showAddButton = false }) {
                         >
                             <Link
                                 to={`/players/${player.id}`}
-                                className="grid grid-cols-5 items-center p-4 hover:bg-gray-50"
+                                className="grid grid-cols-6 items-center p-4 hover:bg-gray-50"
                             >
                                 <span className="font-medium">{player.name}</span>
+                                <span className="text-gray-600">{cricketTeams[player.team] || '...'}</span>
                                 <span className="text-gray-600">{player.role}</span>
                                 <span className="text-gray-600">{player.batting_style}</span>
                                 <span className="text-gray-600">{player.bowling_style}</span>
