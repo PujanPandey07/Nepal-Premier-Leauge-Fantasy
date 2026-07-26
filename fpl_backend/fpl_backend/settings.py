@@ -141,6 +141,12 @@ REDIS_URL = os.getenv('REDIS_URL')
 
 CELERY_BROKER_URL = REDIS_URL + '?ssl_cert_reqs=CERT_NONE'
 CELERY_RESULT_BACKEND = REDIS_URL + '?ssl_cert_reqs=CERT_NONE'
+CELERY_BEAT_SCHEDULE = {
+    'ingest-live-npl-matches': {
+        'task': 'core.tasks.ingest_live_npl_matches',
+        'schedule': 300.0,  # every 5 minutes
+    },
+}
 
 CACHES = {
     'default': {

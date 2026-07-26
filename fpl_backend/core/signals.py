@@ -3,7 +3,7 @@ from allauth.account.signals import user_signed_up
 from .tasks import send_welcome_email
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from .models import League, Player_Match_Performance, Match, Fantasy_Team, Fantasy_Team_Player, LeagueMember, User, Transaction
+from .models import League, Player_Match_Performance, Match, Fantasy_Team, Fantasy_Team_Player, LeagueMember, User, Transaction, Innings
 from django.db.models import F, Sum
 from core import models
 from decimal import Decimal
@@ -132,3 +132,35 @@ def populate_user_from_google(sender, request, sociallogin, **kwargs):
         # Don't call user.save() here — allauth will handle saving the user.
         # Calling save() at this point causes an INSERT instead of UPDATE
         # for existing users, hitting the unique email constraint.
+
+
+@receiver(post_save, sender=Innings)
+def update_fantasy_points_after_innings(sender, instance, created, **kwargs):
+    if not instance.is_complete:
+        return  # only recalc once this innings is actually done
+
+    match = instance.match
+    fantasy_teams = Fantasy_Team.objects.filter(match=match)
+
+    for team in fantasy_teams:
+        total_points = 0
+        team_players = Fantasy_Team_Player.objects.filter(fantasy_team=team)
+
+        for team_player in team_players:
+            # only count performances from innings marked complete —
+            # a player still batting in an unfinished innings doesn't count yet
+            performances = Player_Match_Performance.objects.filter(
+                player=team_player.player,
+                match=match,
+                innings__is_complete=True,
+            )
+            for performance in performances:
+                points = performance.fantasy_points
+                if team_player.is_captain:
+                    points *= 2
+                elif team_player.is_vice_captain:
+                    points *= 1.5
+                total_points += points
+
+        Fantasy_Team.objects.filter(pk=team.pk).update(
+            total_points=total_points)

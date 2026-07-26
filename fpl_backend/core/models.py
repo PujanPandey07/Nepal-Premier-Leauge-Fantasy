@@ -172,6 +172,8 @@ class Player_Match_Performance(models.Model):
         Player, on_delete=models.CASCADE, related_name='performances')
     match = models.ForeignKey(
         Match, on_delete=models.CASCADE, related_name='performances')
+    innings = models.ForeignKey(
+        'Innings', on_delete=models.CASCADE, related_name='performances', null=True, blank=True)
     runs_scored = models.IntegerField(default=0)
     balls_faced = models.IntegerField(default=0)
     fours = models.IntegerField(default=0)

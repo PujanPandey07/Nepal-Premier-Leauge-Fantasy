@@ -29,6 +29,17 @@ services:
     command: celery -A fpl_backend worker -l info
     depends_on:
       - postgres
+  celery-beat:
+    build:
+      context: ./fpl_backend
+    volumes:
+      - ./fpl_backend:/app
+    container_name: celery-beat
+    env_file:
+      - .env
+    command: celery -A fpl_backend beat -l info
+    depends_on:
+      - postgres
 
   frontend:
     build:
