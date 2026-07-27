@@ -76,7 +76,7 @@ class ScorecardPerformanceSerializer(serializers.ModelSerializer):
         model = Player_Match_Performance
         fields = [
             'player', 'player_name', 'runs_scored', 'balls_faced', 'fours',
-            'sixes', 'strike_rate', 'wickets_taken', 'economy_rate',
+            'sixes', 'strike_rate', 'wickets_taken', 'overs_bowled', 'economy_rate',
             'maidens', 'catches', 'stumpings', 'run_outs', 'fantasy_points',
         ]
         read_only_fields = ['fantasy_points']
@@ -190,8 +190,8 @@ class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
             existing_roles = list(
                 team_players.values_list('player__role', flat=True))
             existing_roles.append(player.role)
-            required_roles = {'Batsman': 4, 'Bowler': 4,
-                              'All-Rounder': 2, 'Wicket-Keeper': 1}
+            required_roles = {'Batsman': 3, 'Bowler': 3,
+                              'All-Rounder': 4, 'Wicket-Keeper': 1}
             for role, min_count in required_roles.items():
                 if existing_roles.count(role) < min_count:
                     raise serializers.ValidationError(

@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [seasonPoints, setSeasonPoints] = useState(0)
   const [latestPoints, setLatestPoints] = useState(0)
   const [myLeagues, setMyLeagues] = useState([])
+  const [topNews, setTopNews] = useState([])
   const [loading, setLoading] = useState(true)
 
   const navigate = useNavigate()
@@ -31,12 +32,14 @@ export default function Dashboard() {
       axiosInstance.get('/api/cricket-teams/'),
       axiosInstance.get('/api/leagues/'),
       axiosInstance.get('/api/players/?ordering=-credit_value'),
+      axiosInstance.get('/api/news/?ordering=-published_at&page_size=3'),
     ])
-      .then(([matchesRes, teamsRes, leaguesRes, playersRes]) => {
+      .then(([matchesRes, teamsRes, leaguesRes, playersRes, newsRes]) => {
         const allMatches = matchesRes.data.results || matchesRes.data
         const teamList = teamsRes.data.results || teamsRes.data
         const leagues = leaguesRes.data.results || leaguesRes.data
         const players = playersRes.data.results || playersRes.data
+        const news = newsRes.data.results || newsRes.data
 
         // Build cricket team id -> name map
         const teamMap = {}
@@ -66,6 +69,9 @@ export default function Dashboard() {
 
         // Top 5 players by credit value
         setTopPlayers(players.slice(0, 5))
+
+        // Top 3 news items
+        setTopNews(news.slice(0, 3))
       })
       .catch(err => console.error('Error loading dashboard:', err))
 
@@ -157,54 +163,92 @@ export default function Dashboard() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f4f6fb]">
       <Navbar />
 
       {/* Hero section */}
-      <div className="bg-slate-900 text-white px-8 py-12">
-        <h1 className="text-3xl font-bold mb-2">NPL Fantasy Cricket</h1>
-        <p className="text-gray-400 mb-6">
-          Build your fantasy team, compete in leagues, and win prizes.
-        </p>
-        {!isLoggedIn && (
-          <div className="flex gap-3">
-            <Link
-              to="/register"
-              className="bg-green-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-700"
-            >
-              Get Started
-            </Link>
-            <Link
-              to="/"
-              className="bg-white text-slate-900 px-5 py-2 rounded-lg font-semibold hover:bg-gray-100"
-            >
-              Login
-            </Link>
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950 text-white">
+        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.12) 0, transparent 30%), radial-gradient(circle at 80% 10%, rgba(255,215,0,0.18) 0, transparent 22%)' }} />
+        <div className="relative px-8 py-14 max-w-6xl mx-auto grid gap-8 lg:grid-cols-[1.2fr_0.8fr] items-center">
+          <div>
+            <p className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-[0.22em] text-white/80 uppercase">
+              NPL Fantasy Cricket
+            </p>
+            <h1 className="mt-4 text-4xl md:text-5xl font-black leading-tight">
+              Follow the league, build smarter teams, and track every point.
+            </h1>
+            <p className="mt-4 max-w-2xl text-white/70 text-base md:text-lg">
+              Live match cards, fantasy points, news, and league standings in one place.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {!isLoggedIn ? (
+                <>
+                  <Link
+                    to="/register"
+                    className="bg-yellow-400 text-slate-950 px-5 py-3 rounded-full font-semibold hover:bg-yellow-300 transition-colors"
+                  >
+                    Get Started
+                  </Link>
+                  <Link
+                    to="/"
+                    className="bg-white/10 text-white px-5 py-3 rounded-full font-semibold hover:bg-white/20 transition-colors"
+                  >
+                    Login
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/build-team"
+                    className="bg-yellow-400 text-slate-950 px-5 py-3 rounded-full font-semibold hover:bg-yellow-300 transition-colors"
+                  >
+                    Build Team
+                  </Link>
+                  <Link
+                    to="/view-team"
+                    className="bg-white/10 text-white px-5 py-3 rounded-full font-semibold hover:bg-white/20 transition-colors"
+                  >
+                    View My Team
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
-        )}
-        {isLoggedIn && (
-          <div className="flex gap-3">
-            <Link
-              to="/build-team"
-              className="bg-green-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-700"
-            >
-              Build Team
-            </Link>
-            <Link
-              to="/view-team"
-              className="bg-white text-slate-900 px-5 py-2 rounded-lg font-semibold hover:bg-gray-100"
-            >
-              View My Team
-            </Link>
+
+          <div className="grid gap-4">
+            <div className="rounded-3xl bg-white/10 backdrop-blur border border-white/10 p-5 shadow-2xl">
+              <p className="text-xs uppercase tracking-[0.24em] text-white/60">Today’s feature</p>
+              <div className="mt-3 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm text-white/60">Upcoming Match</p>
+                  <p className="text-xl font-bold">{upcomingMatch ? `${cricketTeams[upcomingMatch.home_team] || '...'} vs ${cricketTeams[upcomingMatch.away_team] || '...'}` : 'No upcoming match'}</p>
+                </div>
+                <div className="rounded-2xl bg-black/20 px-4 py-3 text-right">
+                  <p className="text-[11px] uppercase tracking-wide text-white/50">Team status</p>
+                  <p className="text-sm font-semibold">{hasTeam ? 'Team Saved' : 'No Team Yet'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-3xl bg-white text-slate-900 p-5 shadow-lg">
+                <p className="text-xs uppercase tracking-[0.22em] text-gray-500">Season Points</p>
+                <p className="mt-2 text-3xl font-black">{seasonPoints}</p>
+              </div>
+              <div className="rounded-3xl bg-yellow-400 text-slate-950 p-5 shadow-lg">
+                <p className="text-xs uppercase tracking-[0.22em] text-slate-700">Latest Match</p>
+                <p className="mt-2 text-3xl font-black">{latestPoints}</p>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
-      <div className="px-8 py-8 max-w-5xl mx-auto">
+      <div className="px-4 py-8 max-w-6xl mx-auto md:px-8">
 
         {/* Personal section — logged in only */}
         {isLoggedIn && (
-          <div className="mb-10">
+          <div className="mb-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
             <h2 className="text-xl font-bold mb-4">Your Stats</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <StatCard
@@ -229,7 +273,7 @@ export default function Dashboard() {
 
             {/* My leagues quick list */}
             {myLeagues.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+              <div className="bg-white rounded-3xl border border-gray-200 p-5 mb-6 shadow-sm">
                 <div className="flex justify-between items-center mb-3">
                   <p className="font-semibold">My Leagues</p>
                   <Link to="/leagues" className="text-blue-600 text-sm hover:underline">
@@ -318,7 +362,7 @@ export default function Dashboard() {
 
         {/* Top players */}
         {topPlayers.length > 0 && (
-          <div className="mb-10">
+          <div className="mb-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Top Players</h2>
               <Link to="/players" className="text-blue-600 text-sm hover:underline">
@@ -346,6 +390,36 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* Top news */}
+        <div className="mt-10 flex items-center justify-between">
+          <h2 className="text-xl font-bold">Top News</h2>
+          <Link to="/news" className="text-blue-600 text-sm hover:underline">View all →</Link>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          {topNews.length > 0 ? topNews.map(item => (
+            <Link
+              key={item.id}
+              to={`/news/${item.id}`}
+              className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              {item.image_url && (
+                <img src={item.image_url} alt={item.title} className="h-40 w-full object-cover" />
+              )}
+              <div className="p-4">
+                <p className="text-xs uppercase tracking-wide text-gray-500">{item.source_name}</p>
+                <h3 className="mt-2 text-base font-bold text-gray-900 group-hover:text-purple-900">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">{item.summary}</p>
+              </div>
+            </Link>
+          )) : (
+            <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-500">
+              No news available yet.
+            </div>
+          )}
+        </div>
 
         {/* Quick links for logged out users */}
         {!isLoggedIn && (

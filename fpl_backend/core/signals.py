@@ -10,6 +10,37 @@ from decimal import Decimal
 from .tasks import send_points_updated_notification
 
 
+def _refresh_team_player_points(match):
+    player_points = {
+        row['player']: row['total_points'] or 0
+        for row in Player_Match_Performance.objects.filter(
+            match=match,
+            innings__is_complete=True,
+        ).values('player').annotate(total_points=Sum('fantasy_points'))
+    }
+
+    fantasy_teams = Fantasy_Team.objects.filter(
+        match=match).prefetch_related('team_players')
+
+    for team in fantasy_teams:
+        total_points = 0
+        for team_player in team.team_players.all():
+            base_points = player_points.get(team_player.player_id, 0)
+            Fantasy_Team_Player.objects.filter(pk=team_player.pk).update(
+                points_earned=base_points
+            )
+
+            if team_player.is_captain:
+                total_points += base_points * 2
+            elif team_player.is_vice_captain:
+                total_points += base_points * 1.5
+            else:
+                total_points += base_points
+
+        Fantasy_Team.objects.filter(pk=team.pk).update(
+            total_points=total_points)
+
+
 @receiver(post_save, sender=Player_Match_Performance)
 def calculate_fantasy_points(sender, instance, **kwargs):
     points = 0
@@ -58,21 +89,20 @@ def update_league_rankings(sender, instance, **kwargs):
         fantasy_teams = Fantasy_Team.objects.filter(
             tournament=instance.tournament)
 
+        _refresh_team_player_points(instance)
+
         for team in fantasy_teams:
             total_points = 0
             team_players = Fantasy_Team_Player.objects.filter(
                 fantasy_team=team)
 
             for team_player in team_players:
-                performances = Player_Match_Performance.objects.filter(
-                    player=team_player.player, match=instance)
-                for performance in performances:
-                    points = performance.fantasy_points
-                    if team_player.is_captain:
-                        points *= 2
-                    elif team_player.is_vice_captain:
-                        points *= 1.5
-                    total_points += points  # add here, not outside
+                points = team_player.points_earned or 0
+                if team_player.is_captain:
+                    points *= 2
+                elif team_player.is_vice_captain:
+                    points *= 1.5
+                total_points += points  # add here, not outside
             Fantasy_Team.objects.filter(pk=team.pk).update(
                 total_points=total_points)
 
@@ -125,8 +155,11 @@ def on_user_signed_up(request, user, **kwargs):
 @receiver(pre_social_login)
 def populate_user_from_google(sender, request, sociallogin, **kwargs):
     user = sociallogin.user
+    extra_data = sociallogin.account.extra_data
+    if not user.email:
+        user.email = extra_data.get(
+            'email', '') or extra_data.get('verified_email', '')
     if not user.name:
-        extra_data = sociallogin.account.extra_data
         user.name = extra_data.get(
             'name', '') or extra_data.get('given_name', '')
         # Don't call user.save() here — allauth will handle saving the user.
@@ -140,27 +173,4 @@ def update_fantasy_points_after_innings(sender, instance, created, **kwargs):
         return  # only recalc once this innings is actually done
 
     match = instance.match
-    fantasy_teams = Fantasy_Team.objects.filter(match=match)
-
-    for team in fantasy_teams:
-        total_points = 0
-        team_players = Fantasy_Team_Player.objects.filter(fantasy_team=team)
-
-        for team_player in team_players:
-            # only count performances from innings marked complete —
-            # a player still batting in an unfinished innings doesn't count yet
-            performances = Player_Match_Performance.objects.filter(
-                player=team_player.player,
-                match=match,
-                innings__is_complete=True,
-            )
-            for performance in performances:
-                points = performance.fantasy_points
-                if team_player.is_captain:
-                    points *= 2
-                elif team_player.is_vice_captain:
-                    points *= 1.5
-                total_points += points
-
-        Fantasy_Team.objects.filter(pk=team.pk).update(
-            total_points=total_points)
+    _refresh_team_player_points(match)

@@ -9,7 +9,7 @@ from core.models import (
 )
 
 # Role string MUST match ROLE_LIMITS keys in your frontend's TeamContext.jsx exactly
-ROLE_LIMITS = {'Wicket-Keeper': 1, 'Batsman': 4, 'Bowler': 4, 'All-Rounder': 2}
+ROLE_LIMITS = {'Wicket-Keeper': 1, 'Batsman': 3, 'Bowler': 3, 'All-Rounder': 4}
 ROLES_FOR_NEW_PLAYERS = (
     ['Wicket-Keeper'] * 1 + ['Batsman'] * 4 +
     ['Bowler'] * 4 + ['All-Rounder'] * 2

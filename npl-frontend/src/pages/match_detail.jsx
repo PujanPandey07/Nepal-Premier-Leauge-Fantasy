@@ -72,6 +72,15 @@ function MatchDetail() {
           )}
 
           <div className="mt-6">
+            {match.status === 'completed' && (
+              <Link
+                to={`/matches/${match.id}/scorecard`}
+                className="inline-block bg-slate-900 text-white px-6 py-2 rounded font-semibold hover:bg-slate-800 mr-3 mb-3"
+              >
+                View Scorecard
+              </Link>
+            )}
+
             {isBuildable ? (
               // Only the closest upcoming match gets this button
               <Link

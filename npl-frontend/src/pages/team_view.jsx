@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom'
 import { ROLE_LIMITS } from '../context/teamcontext'
 import Navbar from '../components/navbar'
 import  axiosInstance  from '../utilis/axiosInstance'
+import { fetchAllPages } from '../utilis/fetchAllPages'
+import { fetchMatchPlayerPoints } from '../utilis/fetchMatchPlayerPoints'
 
 // same "which matches are currently buildable" rule used on the Matches page —
 // the earliest open match's calendar day, so double-headers return 2 matches
@@ -39,12 +41,10 @@ function ViewTeam() {
     }
 
     Promise.all([
-      axiosInstance.get('/api/matches/'),
-      axiosInstance.get('/api/cricket-teams/'),
+      fetchAllPages('/api/matches/?page_size=20'),
+      fetchAllPages('/api/cricket-teams/?page_size=20'),
     ])
-      .then(([matchesRes, teamsRes]) => {
-        const allMatches = matchesRes.data.results || matchesRes.data
-        const teamListData = teamsRes.data.results || teamsRes.data
+      .then(([allMatches, teamListData]) => {
 
         const teamMap = {}
         teamListData.forEach(t => { teamMap[t.id] = t.name })
@@ -82,9 +82,11 @@ function ViewTeam() {
 
         setTeamName(existing.name)
 
-        return axiosInstance.get('/api/fantasy-team-players/', { headers })
-          .then(res2 => {
-            const allRows = res2.data.results || res2.data
+        return Promise.all([
+          fetchAllPages('/api/fantasy-team-players/?page_size=20'),
+          fetchMatchPlayerPoints(currentMatch.id),
+        ])
+          .then(([allRows, pointsByPlayer]) => {
             const rows = allRows.filter(r => r.fantasy_team === existing.id)
 
             return Promise.all(
@@ -95,7 +97,7 @@ function ViewTeam() {
                     credit_value: Number(pRes.data.credit_value),
                     _isCaptain: row.is_captain,
                     _isViceCaptain: row.is_vice_captain,
-                    points_earned: row.points_earned,
+                    points_earned: pointsByPlayer[row.player] ?? row.points_earned ?? 0,
                   }))
               )
             )
@@ -119,7 +121,10 @@ function ViewTeam() {
   const isDeadlinePassed = currentMatch
     ? new Date() > new Date(currentMatch.match_date) - 30 * 60 * 1000
     : false
-  const totalPoints = squad.reduce((sum, p) => sum + (p.points_earned || 0), 0)
+  const totalPoints = squad.reduce((sum, p) => {
+    const multiplier = p.id === captainId ? 2 : p.id === viceCaptainId ? 1.5 : 1
+    return sum + (Number(p.points_earned || 0) * multiplier)
+  }, 0)
 
   if (loadingList) return <p className="p-8">Loading...</p>
 

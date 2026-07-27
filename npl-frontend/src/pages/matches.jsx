@@ -4,6 +4,7 @@ import axios from 'axios'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/navbar'
 import  axiosInstance  from '../utilis/axiosInstance'
+import { fetchAllPages } from '../utilis/fetchAllPages'
 
 const BRAND = '#38003c'
 
@@ -37,17 +38,18 @@ function Matches() {
   const [buildableIds, setBuildableIds] = useState(new Set())
 
   useEffect(() => {
-    axiosInstance.get('/api/matches/')
-      .then(res => {
-        setMatches(res.data.results || res.data)
-        setNextPage(res.data.next)
-        setPrevPage(res.data.previous)
+    fetchAllPages('/api/matches/?page_size=20')
+      .then(allMatches => {
+        const sorted = [...allMatches].sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
+        setMatches(sorted)
+        setNextPage(null)
+        setPrevPage(null)
       })
       .catch(error => console.error('Error fetching matches:', error))
 
-    axiosInstance.get('/api/matches/?ordering=match_date')
+    fetchAllPages('/api/matches/?ordering=match_date&page_size=20')
       .then(res => {
-        const sorted = res.data.results || res.data
+        const sorted = res
         const now = new Date()
         const isOpen = (m) => now < new Date(m.match_date) - 30 * 60 * 1000
         const openSorted = sorted.filter(isOpen)

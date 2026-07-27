@@ -80,7 +80,7 @@ function Login() {
 
           {/* Google login button — plain <a> tag since it's a full page redirect */}
           
-          <a  href="http://localhost:8000/accounts/google/login/"
+          <a  href="http://localhost:8000/accounts/google/login/?next=http://localhost:8000/auth/complete/"
             className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded px-4 py-2 hover:bg-gray-50 text-sm font-medium text-gray-700">
           
             <img

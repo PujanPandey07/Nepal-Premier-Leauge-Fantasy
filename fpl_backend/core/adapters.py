@@ -16,6 +16,8 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
 
         # Google's extra profile data includes 'name' directly
         extra_data = sociallogin.account.extra_data
+        if not getattr(user, 'email', None):
+            user.email = extra_data.get('email', '') or data.get('email', '')
         if not getattr(user, 'name', None):
             user.name = extra_data.get('name', '') or data.get('name', '')
 

@@ -11,6 +11,9 @@ import Matches from "./pages/matches";
 import ViewPoints from "./pages/points_view";
 import BuildTeamRedirect from "./pages/build_team_redirect";
 import MatchDetail from "./pages/match_detail";
+import MatchScorecard from "./pages/match_scorecard";
+import NewsPage from "./pages/news";
+import NewsDetail from "./pages/news_detail";
 import Leagues from "./pages/leauges";
 import LeagueDetails from "./pages/league_details";
 import ProtectedRoute from "./components/protected_route";
@@ -46,12 +49,15 @@ function App() {
         <Route path="/register" element={<Registration />} />
         <Route path="/matches" element={<Matches />} />
         <Route path="/matches/:matchId" element={<MatchDetail />} />
+        <Route path="/matches/:matchId/scorecard" element={<MatchScorecard />} />
         <Route path="/leagues" element={<Leagues />} />
         <Route path="/leagues/:leagueId" element={<LeagueDetails />} />
         <Route path="/players" element={<Players />} />
         <Route path="/players/:id" element={<PlayersDetail />} />
         <Route path="/cricket-teams" element={<CricketTeams />} />
         <Route path="/cricket-teams/:teamId" element={<CricketTeamDetail />} />
+        <Route path="/news" element={<NewsPage />} />
+        <Route path="/news/:newsId" element={<NewsDetail />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/mock-payment" element={<MockPayment />} />
 

@@ -6,9 +6,9 @@ import  axiosInstance  from '../utilis/axiosInstance'
 export const TeamContext = createContext()
 export const ROLE_LIMITS = {
   'Wicket-Keeper': 1,
-  'Batsman': 4,
-  'Bowler': 4,
-  'All-Rounder': 2,
+  'Batsman': 3,
+  'Bowler': 3,
+  'All-Rounder': 4,
 }
 
 export function TeamProvider({ children }) {

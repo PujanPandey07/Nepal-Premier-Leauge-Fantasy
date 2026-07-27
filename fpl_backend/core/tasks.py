@@ -89,6 +89,7 @@ def _write_innings(match, innings_data, innings_number, is_complete):
     for bl in innings_data.get('bowler', []):
         stats_by_cricbuzz_id.setdefault(int(bl['id']), {}).update({
             'wickets_taken': bl['wickets'],
+            'overs_bowled': Decimal(str(bl.get('overs') or 0)),
             'economy_rate': Decimal(str(bl['economy'] or 0)),
             'maidens': bl['maidens'],
         })

@@ -28,6 +28,7 @@ function Navbar() {
         <Link to="/" className="hover:text-yellow-400">Home</Link>
         <Link to="/players" className="hover:text-yellow-400">Players</Link>
         <Link to="/matches" className="hover:text-yellow-400">Matches</Link>
+        <Link to="/news" className="hover:text-yellow-400">News</Link>
         <Link to="/leagues" className="hover:text-yellow-400">Leagues</Link>
         <Link to="/cricket-teams" className="hover:text-yellow-400">Teams</Link>
         {isLoggedIn && (

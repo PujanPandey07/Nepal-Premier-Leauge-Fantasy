@@ -179,6 +179,8 @@ class Player_Match_Performance(models.Model):
     fours = models.IntegerField(default=0)
     sixes = models.IntegerField(default=0)
     wickets_taken = models.IntegerField(default=0)
+    overs_bowled = models.DecimalField(
+        max_digits=4, decimal_places=1, default=0.0)
     catches = models.IntegerField(default=0)
     economy_rate = models.DecimalField(
         max_digits=5, decimal_places=2, default=0.00)
