@@ -182,6 +182,7 @@ class Player_Match_Performance(models.Model):
     overs_bowled = models.DecimalField(
         max_digits=4, decimal_places=1, default=0.0)
     catches = models.IntegerField(default=0)
+    how_out = models.CharField(max_length=100, blank=True, null=True)
     economy_rate = models.DecimalField(
         max_digits=5, decimal_places=2, default=0.00)
     stumpings = models.IntegerField(default=0)

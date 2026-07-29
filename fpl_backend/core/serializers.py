@@ -77,7 +77,7 @@ class ScorecardPerformanceSerializer(serializers.ModelSerializer):
         fields = [
             'player', 'player_name', 'runs_scored', 'balls_faced', 'fours',
             'sixes', 'strike_rate', 'wickets_taken', 'overs_bowled', 'economy_rate',
-            'maidens', 'catches', 'stumpings', 'run_outs', 'fantasy_points',
+            'maidens', 'catches', 'stumpings', 'run_outs', 'fantasy_points', 'how_out'
         ]
         read_only_fields = ['fantasy_points']
 
