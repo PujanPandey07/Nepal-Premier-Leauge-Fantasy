@@ -20,40 +20,6 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-class User(AbstractBaseUser, PermissionsMixin):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100)
-    email = models.EmailField(unique=True)
-    phone_no = models.CharField(
-        max_length=15, unique=True, null=True, blank=True)
-    profile_picture = models.URLField(null=True, blank=True)
-    wallet_balance = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0.00)
-
-    role = models.CharField(max_length=20, choices=[
-        ('user', 'User'),
-        ('admin', 'Admin'),
-        ('moderator', 'Moderator'),
-    ], default='user')
-
-    is_verified = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    objects = UserManager()
-
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['name']
-
-    def __str__(self):
-        return f"{self.name} ({self.email})"
-
-    class Meta:
-        ordering = ['-created_at']
-
-
 class Sport(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
@@ -194,6 +160,48 @@ class Player_Match_Performance(models.Model):
 
     def __str__(self):
         return f"{self.player.name} - {self.match.home_team.name} vs {self.match.away_team.name}"
+
+
+class User(AbstractBaseUser, PermissionsMixin):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team_name = models.CharField(max_length=100, blank=True, null=True)
+    favorite_team = models.ForeignKey(
+        Cricket_Team, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='fans'
+    )
+    favorite_players = models.ManyToManyField(
+        Player, blank=True, related_name='fans'
+    )
+    name = models.CharField(max_length=100)
+    email = models.EmailField(unique=True)
+    phone_no = models.CharField(
+        max_length=15, unique=True, null=True, blank=True)
+    profile_picture = models.URLField(null=True, blank=True)
+    wallet_balance = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0.00)
+
+    role = models.CharField(max_length=20, choices=[
+        ('user', 'User'),
+        ('admin', 'Admin'),
+        ('moderator', 'Moderator'),
+    ], default='user')
+
+    is_verified = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = UserManager()
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.email})"
+
+    class Meta:
+        ordering = ['-created_at']
 
 
 class Fantasy_Team(models.Model):

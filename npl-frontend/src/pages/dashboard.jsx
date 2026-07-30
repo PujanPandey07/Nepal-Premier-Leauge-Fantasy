@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/navbar'
-import  axiosInstance  from '../utilis/axiosInstance'
-
+import TeamNameModal from '../components/Teamnamemodel'
+import axiosInstance from '../utilis/axiosInstance'
 
 export default function Dashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -12,21 +12,30 @@ export default function Dashboard() {
   const [topLeagues, setTopLeagues] = useState([])
   const [topPlayers, setTopPlayers] = useState([])
   const [cricketTeams, setCricketTeams] = useState({})
-  const [hasTeam, setHasTeam] = useState(false)
+  const [fantasyTeams, setFantasyTeams] = useState([]) // raw list, used to derive hasTeam per-match
   const [seasonPoints, setSeasonPoints] = useState(0)
   const [latestPoints, setLatestPoints] = useState(0)
   const [myLeagues, setMyLeagues] = useState([])
   const [topNews, setTopNews] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // Favorites — used to highlight relevant content, pulled from the same
+  // /api/users/me/ call that checks whether the team-name modal is needed
+  const [favoriteTeamId, setFavoriteTeamId] = useState(null)
+  const [favoritePlayerIds, setFavoritePlayerIds] = useState([])
+  const [showTeamNameModal, setShowTeamNameModal] = useState(false)
+
   const navigate = useNavigate()
 
   useEffect(() => {
+    // NOTE: confirm this matches whatever key your login flow actually
+    // stores the access token under (GoogleLoginCompleteView sends
+    // ?access=...&refresh=... — check your regular email/password login
+    // path stores it under the same 'access' key).
     const token = localStorage.getItem('refreshtoken')
     setIsLoggedIn(!!token)
-    
 
-    // These fetches run for everyone — public info
+    // Public fetches — run for everyone, logged in or not
     Promise.all([
       axiosInstance.get('/api/matches/'),
       axiosInstance.get('/api/cricket-teams/'),
@@ -41,68 +50,68 @@ export default function Dashboard() {
         const players = playersRes.data.results || playersRes.data
         const news = newsRes.data.results || newsRes.data
 
-        // Build cricket team id -> name map
         const teamMap = {}
         teamList.forEach(t => { teamMap[t.id] = t.name })
         setCricketTeams(teamMap)
 
         const now = new Date()
 
-        // Find the single closest upcoming match with open deadline
         const eligible = allMatches
           .filter(m => now < new Date(m.match_date) - 30 * 60 * 1000)
           .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
         setUpcomingMatch(eligible[0] || null)
 
-        // Last 3 past matches
         const past = allMatches
           .filter(m => now >= new Date(m.match_date) - 30 * 60 * 1000)
           .sort((a, b) => new Date(b.match_date) - new Date(a.match_date))
           .slice(0, 3)
         setPastMatches(past)
 
-        // Top 3 leagues by prize pool
         const sorted = [...leagues]
           .sort((a, b) => b.prize_pool - a.prize_pool)
           .slice(0, 3)
         setTopLeagues(sorted)
 
-        // Top 5 players by credit value
         setTopPlayers(players.slice(0, 5))
-
-        // Top 3 news items
         setTopNews(news.slice(0, 3))
       })
       .catch(err => console.error('Error loading dashboard:', err))
 
-    // These fetches only run for logged-in users
+    // Personal fetches — logged-in users only
     if (token) {
+      // Profile fetch — checks whether the one-time team name prompt is
+      // needed, and pulls favorites for highlighting content below
+      axiosInstance.get('/api/users/me/')
+        .then(res => {
+          if (!res.data.team_name) {
+            setShowTeamNameModal(true)
+          }
+          setFavoriteTeamId(res.data.favorite_team || null)
+          setFavoritePlayerIds(res.data.favorite_players || [])
+        })
+        .catch(err => console.error('Error checking user profile:', err))
+
       Promise.all([
         axiosInstance.get('/api/fantasy-teams/'),
         axiosInstance.get('/api/league-members/')
           .catch(() => ({ data: { results: [] } })),
       ])
         .then(([fantasyTeamsRes, membersRes]) => {
-          const fantasyTeams = fantasyTeamsRes.data.results || fantasyTeamsRes.data
+          const teams = fantasyTeamsRes.data.results || fantasyTeamsRes.data
           const members = membersRes.data.results || membersRes.data || []
 
-          // Season total points
-          const total = fantasyTeams.reduce((sum, t) => sum + (t.total_points || 0), 0)
+          setFantasyTeams(teams)
+
+          const total = teams.reduce((sum, t) => sum + (t.total_points || 0), 0)
           setSeasonPoints(total)
 
-          // Latest match points — most recently created fantasy team
-          if (fantasyTeams.length > 0) {
-            const latest = fantasyTeams[fantasyTeams.length - 1]
-            setLatestPoints(latest.total_points || 0)
+          if (teams.length > 0) {
+            const sortedByMatchDate = [...teams].sort(
+              (a, b) => new Date(b.match_date || 0) - new Date(a.match_date || 0)
+            )
+            setLatestPoints(sortedByMatchDate[0].total_points || 0)
           }
 
-          // Check if user has a team for the upcoming match
-          // (we set upcomingMatch above but it may not be in state yet —
-          // we'll handle this check in render using fantasyTeams directly)
-          // Store fantasy teams in state for the check below
-          setHasTeam(fantasyTeams.length > 0)
-
-          // My leagues — get league ids from memberships
           const myLeagueIds = members.map(m => m.league)
           const currentUserId = JSON.parse(atob(token.split('.')[1])).user_id
 
@@ -122,7 +131,19 @@ export default function Dashboard() {
     }
   }, [])
 
-  // Small reusable stat card
+  // Derived, not stored — always reflects the *current* upcomingMatch and
+  // fantasyTeams, so it can't go stale the way a separately-set boolean can.
+  // If your API returns `match` as a nested object instead of a raw id,
+  // change the comparison below to `t.match.id === upcomingMatch.id`.
+  const hasTeamForUpcomingMatch = upcomingMatch
+    ? fantasyTeams.some(t => t.match === upcomingMatch.id)
+    : false
+
+  // Does the upcoming match involve the user's favorite team?
+  const upcomingMatchIsFavorite = upcomingMatch && favoriteTeamId
+    ? upcomingMatch.home_team === favoriteTeamId || upcomingMatch.away_team === favoriteTeamId
+    : false
+
   const StatCard = ({ label, value, sub }) => (
     <div className="bg-white rounded-xl border border-gray-200 p-5">
       <p className="text-xs text-gray-500 mb-1">{label}</p>
@@ -131,29 +152,42 @@ export default function Dashboard() {
     </div>
   )
 
-  // Small match card used in both upcoming and past sections
-  const MatchCard = ({ match, badge }) => (
-    <Link
-      to={`/matches/${match.id}`}
-      className="block bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
-    >
-      {badge && (
-        <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">
-          {badge}
-        </span>
-      )}
-      <p className="font-semibold mt-2">
-        {cricketTeams[match.home_team] || '...'} vs {cricketTeams[match.away_team] || '...'}
-      </p>
-      <p className="text-sm text-gray-500 mt-1">{match.venue}</p>
-      <p className="text-sm text-gray-500">
-        {new Date(match.match_date).toLocaleString()}
-      </p>
-      {match.result && (
-        <p className="text-sm text-gray-700 font-medium mt-1">Result: {match.result}</p>
-      )}
-    </Link>
-  )
+  const MatchCard = ({ match, badge }) => {
+    const isFavoriteMatch = favoriteTeamId &&
+      (match.home_team === favoriteTeamId || match.away_team === favoriteTeamId)
+
+    return (
+      <Link
+        to={`/matches/${match.id}`}
+        className={`block bg-white rounded-xl border p-4 hover:shadow-md transition-shadow ${
+          isFavoriteMatch ? 'border-yellow-300 ring-1 ring-yellow-200' : 'border-gray-200'
+        }`}
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          {badge && (
+            <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">
+              {badge}
+            </span>
+          )}
+          {isFavoriteMatch && (
+            <span className="text-xs bg-yellow-100 text-yellow-700 font-semibold px-2 py-0.5 rounded-full">
+              ★ Favorite Team
+            </span>
+          )}
+        </div>
+        <p className="font-semibold mt-2">
+          {cricketTeams[match.home_team] || '...'} vs {cricketTeams[match.away_team] || '...'}
+        </p>
+        <p className="text-sm text-gray-500 mt-1">{match.venue}</p>
+        <p className="text-sm text-gray-500">
+          {new Date(match.match_date).toLocaleString()}
+        </p>
+        {match.result && (
+          <p className="text-sm text-gray-700 font-medium mt-1">Result: {match.result}</p>
+        )}
+      </Link>
+    )
+  }
 
   if (loading) return (
     <div className="min-h-screen bg-gray-50">
@@ -217,7 +251,14 @@ export default function Dashboard() {
 
           <div className="grid gap-4">
             <div className="rounded-3xl bg-white/10 backdrop-blur border border-white/10 p-5 shadow-2xl">
-              <p className="text-xs uppercase tracking-[0.24em] text-white/60">Today’s feature</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[0.24em] text-white/60">Today's feature</p>
+                {upcomingMatchIsFavorite && (
+                  <span className="text-xs bg-yellow-400/20 text-yellow-300 font-semibold px-2 py-0.5 rounded-full border border-yellow-400/40">
+                    ★ Your Team
+                  </span>
+                )}
+              </div>
               <div className="mt-3 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm text-white/60">Upcoming Match</p>
@@ -225,7 +266,7 @@ export default function Dashboard() {
                 </div>
                 <div className="rounded-2xl bg-black/20 px-4 py-3 text-right">
                   <p className="text-[11px] uppercase tracking-wide text-white/50">Team status</p>
-                  <p className="text-sm font-semibold">{hasTeam ? 'Team Saved' : 'No Team Yet'}</p>
+                  <p className="text-sm font-semibold">{hasTeamForUpcomingMatch ? 'Team Saved' : 'No Team Yet'}</p>
                 </div>
               </div>
             </div>
@@ -246,32 +287,20 @@ export default function Dashboard() {
 
       <div className="px-4 py-8 max-w-6xl mx-auto md:px-8">
 
-        {/* Personal section — logged in only */}
         {isLoggedIn && (
           <div className="mb-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
             <h2 className="text-xl font-bold mb-4">Your Stats</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <StatCard
-                label="Season Total"
-                value={`${seasonPoints} pts`}
-              />
-              <StatCard
-                label="Latest Match"
-                value={`${latestPoints} pts`}
-              />
-              <StatCard
-                label="My Leagues"
-                value={myLeagues.length}
-                sub="leagues joined or created"
-              />
+              <StatCard label="Season Total" value={`${seasonPoints} pts`} />
+              <StatCard label="Latest Match" value={`${latestPoints} pts`} />
+              <StatCard label="My Leagues" value={myLeagues.length} sub="leagues joined or created" />
               <StatCard
                 label="Team Status"
-                value={hasTeam ? '✓ Team Saved' : 'No Team Yet'}
+                value={hasTeamForUpcomingMatch ? '✓ Team Saved' : 'No Team Yet'}
                 sub={upcomingMatch ? `for upcoming match` : 'no upcoming match'}
               />
             </div>
 
-            {/* My leagues quick list */}
             {myLeagues.length > 0 && (
               <div className="bg-white rounded-3xl border border-gray-200 p-5 mb-6 shadow-sm">
                 <div className="flex justify-between items-center mb-3">
@@ -299,7 +328,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Upcoming match — everyone sees this */}
         <h2 className="text-xl font-bold mb-4">Upcoming Match</h2>
         {upcomingMatch ? (
           <div className="mb-10">
@@ -309,7 +337,6 @@ export default function Dashboard() {
           <p className="text-gray-500 mb-10">No upcoming matches right now.</p>
         )}
 
-        {/* Recent results */}
         {pastMatches.length > 0 && (
           <div className="mb-10">
             <div className="flex justify-between items-center mb-4">
@@ -326,7 +353,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Top leagues */}
         {topLeagues.length > 0 && (
           <div className="mb-10">
             <div className="flex justify-between items-center mb-4">
@@ -360,7 +386,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Top players */}
         {topPlayers.length > 0 && (
           <div className="mb-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
             <div className="flex justify-between items-center mb-4">
@@ -376,22 +401,29 @@ export default function Dashboard() {
                 <span>Team</span>
                 <span>Credits</span>
               </div>
-              {topPlayers.map(player => (
-                <div
-                  key={player.id}
-                  className="grid grid-cols-4 items-center p-4 border-b border-gray-100"
-                >
-                  <span className="font-medium">{player.name}</span>
-                  <span className="text-gray-600 text-sm">{player.role}</span>
-                  <span className="text-gray-600 text-sm">{player.team_name || '—'}</span>
-                  <span className="text-blue-600 font-bold">{player.credit_value}</span>
-                </div>
-              ))}
+              {topPlayers.map(player => {
+                const isFavoritePlayer = favoritePlayerIds.includes(player.id)
+                return (
+                  <div
+                    key={player.id}
+                    className={`grid grid-cols-4 items-center p-4 border-b border-gray-100 ${
+                      isFavoritePlayer ? 'bg-yellow-50' : ''
+                    }`}
+                  >
+                    <span className="font-medium flex items-center gap-1.5">
+                      {isFavoritePlayer && <span className="text-yellow-500">★</span>}
+                      {player.name}
+                    </span>
+                    <span className="text-gray-600 text-sm">{player.role}</span>
+                    <span className="text-gray-600 text-sm">{player.team_name || '—'}</span>
+                    <span className="text-blue-600 font-bold">{player.credit_value}</span>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
 
-        {/* Top news */}
         <div className="mt-10 flex items-center justify-between">
           <h2 className="text-xl font-bold">Top News</h2>
           <Link to="/news" className="text-blue-600 text-sm hover:underline">View all →</Link>
@@ -421,7 +453,6 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Quick links for logged out users */}
         {!isLoggedIn && (
           <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
             <p className="text-gray-600 mb-4">
@@ -445,6 +476,10 @@ export default function Dashboard() {
         )}
 
       </div>
+
+      {showTeamNameModal && (
+        <TeamNameModal onSaved={() => setShowTeamNameModal(false)} />
+      )}
     </div>
   )
 }

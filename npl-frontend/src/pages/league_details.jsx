@@ -1,9 +1,8 @@
 // LeagueDetails.jsx
 import { useParams, Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import axios from 'axios'
 import Navbar from '../components/navbar'
-import  axiosInstance  from '../utilis/axiosInstance'
+import axiosInstance from '../utilis/axiosInstance'
 
 function LeagueDetails() {
     const { leagueId } = useParams()
@@ -16,38 +15,38 @@ function LeagueDetails() {
     const [success, setSuccess] = useState(null)
     const [loading, setLoading] = useState(true)
     const [joining, setJoining] = useState(false)
-    const [users, setUsers] = useState({})  // maps user id -> user name
+    const [users, setUsers] = useState({})
 
-    useEffect(() => {
-        const token = localStorage.getItem('refreshtoken')
-        if (!token) return
-        const headers = { Authorization: `Bearer ${token}` }
-        const currentUserId = JSON.parse(atob(token.split('.')[1])).user_id
+    const getCurrentUserId = () => {
+        const token = localStorage.getItem('access')
+        if (!token) return null
+        try {
+            return JSON.parse(atob(token.split('.')[1])).user_id
+        } catch {
+            return null
+        }
+    }
 
-        Promise.all([
-            axiosInstance.get(`/api/leagues/${leagueId}/`, { headers }),
-            axiosInstance.get(`/api/league-members/?league=${leagueId}`, { headers })
+    const fetchAll = () => {
+        const currentUserId = getCurrentUserId()
+
+        return Promise.all([
+            axiosInstance.get(`/api/leagues/${leagueId}/`),
+            axiosInstance.get(`/api/league-members/?league=${leagueId}`)
                 .catch(() => ({ data: { results: [] } }))
         ])
             .then(([leagueRes, membersRes]) => {
                 const leagueData = leagueRes.data
                 setLeague(leagueData)
-
-                if (leagueData.invite_code !== undefined) {
-                    setIsCreator(true)
-                }
+                setIsCreator(leagueData.invite_code !== undefined)
 
                 const memberList = membersRes.data.results || membersRes.data || []
                 setMembers(memberList)
+                setIsMember(memberList.some(m => m.user === currentUserId))
 
-                const alreadyMember = memberList.some(m => m.user === currentUserId)
-                setIsMember(alreadyMember)
-
-                // Fetch user details for each member to get their names
-                // UserPublicSerializer exposes id, name, profile_picture
                 return Promise.all(
                     memberList.map(m =>
-                        axiosInstance.get(`/api/users/${m.user}/`, { headers })
+                        axiosInstance.get(`/api/users/${m.user}/`)
                             .then(res => ({ id: m.user, name: res.data.name }))
                             .catch(() => ({ id: m.user, name: 'Unknown' }))
                     )
@@ -58,35 +57,26 @@ function LeagueDetails() {
                 userDetails.forEach(u => { userMap[u.id] = u.name })
                 setUsers(userMap)
             })
+    }
+
+    useEffect(() => {
+        fetchAll()
             .catch(error => console.error('Error fetching league details:', error))
             .finally(() => setLoading(false))
     }, [leagueId])
 
     const handleJoin = async () => {
-        const token = localStorage.getItem('token')
-        const headers = { Authorization: `Bearer ${token}` }
         setJoining(true)
         setError(null)
 
         try {
-            await axiosInstance.post(
-                '/api/leagues/join/',
-                {
-                    league_id: leagueId,
-                    ...(league.is_public ? {} : { invite_code: inviteCode })
-                },
-                { headers }
-            )
+            await axiosInstance.post('/api/leagues/join/', {
+                league_id: leagueId,
+                ...(league.is_public ? {} : { invite_code: inviteCode })
+            })
             setSuccess('Successfully joined the league!')
             setIsMember(true)
-
-            // Refresh both league data and members list
-            const [leagueRes, membersRes] = await Promise.all([
-                axiosInstance.get(`/api/leagues/${leagueId}/`, { headers }),
-                axiosInstance.get(`/api/league-members/?league=${leagueId}`, { headers })
-            ])
-            setLeague(leagueRes.data)
-            setMembers(membersRes.data.results || membersRes.data || [])
+            await fetchAll()
         } catch (err) {
             setError(err.response?.data?.detail || 'Failed to join league')
         } finally {
@@ -94,171 +84,186 @@ function LeagueDetails() {
         }
     }
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>
-    if (!league) return <div className="min-h-screen flex items-center justify-center">League not found.</div>
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+                <p className="text-gray-400">Loading...</p>
+            </div>
+        )
+    }
+    if (!league) {
+        return (
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+                <p className="text-gray-400">League not found.</p>
+            </div>
+        )
+    }
 
-    const initials = league.name.split(' ').map(n => n[0]).join('')
     const isFull = league.member_count >= league.max_members
     const isOpen = league.status === 'open'
-
-    // Sort members by ranking
     const sortedMembers = [...members].sort((a, b) => a.ranking - b.ranking)
 
     return (
-        <div className="min-h-screen bg-gray-100 p-8">
+        <div className="min-h-screen bg-gray-100">
             <Navbar />
-            <div className="max-w-3xl mx-auto">
 
-                <Link to="/leagues" className="text-blue-600 hover:underline text-sm">
-                    ← Back to leagues
-                </Link>
-
-                {/* Banner */}
-                <div className="bg-blue-600 rounded-xl p-6 flex items-center gap-4 mt-4 mb-4">
-                    <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-blue-600 font-semibold text-2xl">
-                        {initials}
-                    </div>
-                    <div>
-                        <p className="text-2xl font-semibold text-white">{league.name}</p>
-                        <p className="text-blue-200 text-sm mt-1">
-                            {league.member_count}/{league.max_members} members
-                        </p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                    {/* Left — stats + join */}
-                    <div className="md:col-span-2 space-y-4">
-
-                        {/* Stats */}
-                        <div className="bg-white rounded-xl border border-gray-200 p-5">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                    <p className="text-xs text-gray-500 mb-1">Status</p>
-                                    <p className="text-base font-semibold">{league.status}</p>
-                                </div>
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                    <p className="text-xs text-gray-500 mb-1">Entry Fee</p>
-                                    <p className="text-base font-semibold">{league.entry_fee}</p>
-                                </div>
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                    <p className="text-xs text-gray-500 mb-1">Prize Pool</p>
-                                    <p className="text-base font-semibold">{league.prize_pool}</p>
-                                </div>
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                    <p className="text-xs text-gray-500 mb-1">Type</p>
-                                    <p className={`text-base font-semibold ${league.is_public ? 'text-green-600' : 'text-red-600'}`}>
-                                        {league.is_public ? 'Public' : 'Private'}
-                                    </p>
-                                </div>
-                            </div>
+            {/* Header — dark FPL-style bar, league identity + quick meta */}
+            <div className="bg-gradient-to-r from-purple-900 via-purple-800 to-indigo-800">
+                <div className="max-w-4xl mx-auto px-6 py-8">
+                    <Link to="/leagues" className="text-purple-200 hover:text-white text-sm">
+                        ← Back to leagues
+                    </Link>
+                    <div className="flex items-end justify-between mt-3 flex-wrap gap-4">
+                        <div>
+                            <h1 className="text-3xl font-extrabold text-white">{league.name}</h1>
+                            <p className="text-purple-200 text-sm mt-1">
+                                {league.member_count}/{league.max_members} members ·{' '}
+                                <span className={league.is_public ? 'text-green-300' : 'text-amber-300'}>
+                                    {league.is_public ? 'Public' : 'Private'}
+                                </span>
+                                {' · '}
+                                {league.status}
+                            </p>
                         </div>
-
-                        {/* Creator: invite code */}
-                        {isCreator && !league.is_public && (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                                <p className="text-sm text-yellow-800 font-medium mb-1">Your invite code</p>
-                                <p className="font-mono text-lg font-bold text-yellow-900 tracking-widest">
-                                    {league.invite_code}
-                                </p>
-                                <p className="text-xs text-yellow-700 mt-1">
-                                    Share this with people you want to invite
-                                </p>
+                        {league.prize_pool > 0 && (
+                            <div className="text-right">
+                                <p className="text-purple-200 text-xs uppercase tracking-wide">Prize Pool</p>
+                                <p className="text-2xl font-bold text-white">{league.prize_pool}</p>
                             </div>
                         )}
+                    </div>
+                </div>
+            </div>
 
-                        {/* Join section */}
-                        <div className="bg-white rounded-xl border border-gray-200 p-5">
-                            {success && <p className="text-green-600 font-medium mb-3">{success}</p>}
-                            {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+            <div className="max-w-4xl mx-auto px-6 py-6">
 
-                            {isMember ? (
-                                <p className="text-green-600 font-semibold">✓ You are a member of this league</p>
-                            ) : isCreator ? (
-                                <p className="text-gray-500 text-sm">You created this league</p>
-                            ) : !isOpen ? (
-                                <p className="text-gray-500 text-sm">This league is no longer open for joining</p>
-                            ) : isFull ? (
-                                <p className="text-red-500 text-sm">This league is full</p>
-                            ) : league.is_public ? (
+                {success && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 mb-4">
+                        {success}
+                    </div>
+                )}
+                {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3 mb-4">
+                        {error}
+                    </div>
+                )}
+
+                {/* Creator invite code */}
+                {isCreator && !league.is_public && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-amber-800 font-medium">Your invite code</p>
+                            <p className="font-mono text-lg font-bold text-amber-900 tracking-widest">
+                                {league.invite_code}
+                            </p>
+                        </div>
+                        <p className="text-xs text-amber-700 max-w-[160px] text-right">
+                            Share this with people you want to invite
+                        </p>
+                    </div>
+                )}
+
+                {/* Join action bar — only shown when relevant, not competing with the table */}
+                {!isMember && !isCreator && (
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+                        {!isOpen ? (
+                            <p className="text-gray-500 text-sm">This league is no longer open for joining</p>
+                        ) : isFull ? (
+                            <p className="text-red-500 text-sm">This league is full</p>
+                        ) : league.is_public ? (
+                            <button
+                                onClick={handleJoin}
+                                disabled={joining}
+                                className="bg-purple-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-purple-800 disabled:opacity-50"
+                            >
+                                {joining ? 'Joining...' : 'Join League'}
+                            </button>
+                        ) : (
+                            <div className="flex gap-3 items-center flex-wrap">
+                                <input
+                                    type="text"
+                                    placeholder="Invite code"
+                                    value={inviteCode}
+                                    onChange={e => setInviteCode(e.target.value)}
+                                    className="border border-gray-300 rounded px-3 py-2 flex-1 min-w-[160px]"
+                                />
                                 <button
                                     onClick={handleJoin}
-                                    disabled={joining}
-                                    className="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
+                                    disabled={joining || !inviteCode}
+                                    className="bg-purple-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-purple-800 disabled:opacity-50"
                                 >
-                                    {joining ? 'Joining...' : 'Join League'}
+                                    {joining ? 'Joining...' : 'Join with Code'}
                                 </button>
-                            ) : (
-                                <div>
-                                    <p className="text-sm text-gray-600 mb-2">Enter invite code to join</p>
-                                    <input
-                                        type="text"
-                                        placeholder="Invite code"
-                                        value={inviteCode}
-                                        onChange={e => setInviteCode(e.target.value)}
-                                        className="border border-gray-300 rounded px-3 py-2 w-full mb-3"
-                                    />
-                                    <button
-                                        onClick={handleJoin}
-                                        disabled={joining || !inviteCode}
-                                        className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
-                                    >
-                                        {joining ? 'Joining...' : 'Join with Code'}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
                     </div>
+                )}
 
-                    {/* Right — members leaderboard */}
-                    <div className="bg-white rounded-xl border border-gray-200 p-5">
-                        <p className="font-semibold mb-3">
-                            Leaderboard
-                            <span className="text-xs text-gray-400 font-normal ml-2">
-                                {members.length} member{members.length !== 1 ? 's' : ''}
-                            </span>
-                        </p>
-                        <div className="space-y-1">
+                {/* Leaderboard — the centerpiece, FPL-style dense table */}
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                                <th className="text-left px-4 py-3 w-12">Rank</th>
+                                <th className="text-left px-4 py-3">Manager</th>
+                                <th className="text-right px-4 py-3 w-24">Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                             {sortedMembers.map((member, index) => {
                                 const name = users[member.user] || 'Loading...'
                                 const initials = name.split(' ').map(n => n[0]).join('')
-                                const isFirst = index === 0 && member.points > 0
+                                const rank = member.ranking || index + 1
+                                const isTopThree = rank <= 3
+
                                 return (
-                                    <div
+                                    <tr
                                         key={member.id}
-                                        className={`flex items-center gap-3 py-2 border-b border-gray-100 last:border-0 ${
-                                            isFirst ? 'bg-yellow-50 rounded-lg px-2' : ''
-                                        }`}
+                                        className="border-t border-gray-100 hover:bg-gray-50"
                                     >
-                                        {/* Rank number */}
-                                        <span className={`text-xs font-bold w-4 text-center ${
-                                            isFirst ? 'text-yellow-600' : 'text-gray-400'
-                                        }`}>
-                                            {member.ranking || index + 1}
-                                        </span>
-                                        {/* Avatar */}
-                                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                                            {initials}
-                                        </div>
-                                        {/* Name + points */}
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate">{name}</p>
-                                            <p className="text-xs text-gray-400">{member.points} pts</p>
-                                        </div>
-                                        {isFirst && (
-                                            <span className="text-yellow-500 text-sm">🏆</span>
-                                        )}
-                                    </div>
+                                        <td className="px-4 py-3">
+                                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                                                rank === 1 ? 'bg-yellow-400 text-yellow-900'
+                                                : rank === 2 ? 'bg-gray-300 text-gray-700'
+                                                : rank === 3 ? 'bg-amber-600 text-amber-50'
+                                                : 'text-gray-400'
+                                            }`}>
+                                                {rank}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-xs font-bold text-purple-800 flex-shrink-0">
+                                                    {initials}
+                                                </div>
+                                                <span className={`font-medium ${isTopThree ? 'text-gray-900' : 'text-gray-700'}`}>
+                                                    {name}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-bold text-gray-900">
+                                            {member.points}
+                                        </td>
+                                    </tr>
                                 )
                             })}
                             {members.length === 0 && (
-                                <p className="text-sm text-gray-400">No members yet</p>
+                                <tr>
+                                    <td colSpan={3} className="px-4 py-8 text-center text-gray-400 text-sm">
+                                        No members yet
+                                    </td>
+                                </tr>
                             )}
-                        </div>
-                    </div>
-
+                        </tbody>
+                    </table>
                 </div>
+
+                {isMember && (
+                    <p className="text-green-600 font-medium text-sm mt-3">✓ You are a member of this league</p>
+                )}
+                {isCreator && (
+                    <p className="text-gray-500 text-sm mt-3">You created this league</p>
+                )}
             </div>
         </div>
     )

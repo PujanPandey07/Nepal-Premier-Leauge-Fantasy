@@ -36,6 +36,7 @@ function Navbar() {
             <Link to="/build-team" className="hover:text-yellow-400">Build Team</Link>
             <Link to="/view-team" className="hover:text-yellow-400">View Team</Link>
             <Link to="/view-points" className="hover:text-yellow-400">View Points</Link>
+             <Link to="/settings" className="hover:text-yellow-400">My Profile</Link>
           </>
         )}
       </div>

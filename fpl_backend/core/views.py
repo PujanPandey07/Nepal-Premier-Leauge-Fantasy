@@ -8,7 +8,7 @@ from .permissions import IsAdminOrReadOnly, IsAuthenticated
 from decimal import Decimal
 from django.core.cache import cache
 
-from django.db.models import Sum
+from django.db.models import Sum, Count, F
 from rest_framework.test import APITestCase
 from rest_framework.views import APIView
 from rest_framework import viewsets
@@ -78,6 +78,32 @@ class PlayerView(CacheInvalidateMixin, viewsets.ModelViewSet):
     ordering_fields = ['name', 'credit_value']
     http_method_names = ['get', 'post', 'put', 'patch',]
     pagination_class = StandardPagination
+
+    @action(detail=True, methods=['get'], url_path='season-stats')
+    def season_stats(self, request, pk=None):
+        player = self.get_object()
+        tournament_id = request.query_params.get('tournament')
+
+        performances = Player_Match_Performance.objects.filter(player=player)
+        if tournament_id:
+            performances = performances.filter(
+                match__tournament_id=tournament_id)
+
+        totals = performances.aggregate(
+            total_runs=Sum('runs_scored'),
+            total_wickets=Sum('wickets_taken'),
+            total_fantasy_points=Sum('fantasy_points'),
+            matches_played=Count('id'),
+        )
+
+        # aggregate() returns None for any field with zero matching rows —
+        # normalize to 0 so the frontend doesn't need to handle null
+        return Response({
+            'total_runs': totals['total_runs'] or 0,
+            'total_wickets': totals['total_wickets'] or 0,
+            'total_fantasy_points': totals['total_fantasy_points'] or 0,
+            'matches_played': totals['matches_played'] or 0,
+        })
 
 
 class MatchView(CacheInvalidateMixin, viewsets.ModelViewSet):

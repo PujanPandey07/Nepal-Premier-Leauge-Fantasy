@@ -2,13 +2,11 @@ import { useState, useContext, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { TeamContext, ROLE_LIMITS } from '../context/teamcontext'
 import Navbar from '../components/navbar'
-import  axiosInstance  from '../utilis/axiosInstance'
 
 function TeamBuilder() {
   const { matchId } = useParams()
   const { selectedPlayers, removePlayer, savedTeamId, loadMatch } = useContext(TeamContext)
   const { captainId, viceCaptainId, setCaptain, setViceCaptain, saveTeam, isDeadlinePassed } = useContext(TeamContext)
-  const [teamName, setTeamName] = useState("")
 
   // Tell TeamContext which match we're building for.
   // Runs whenever matchId changes (e.g. user navigates to a different match).
@@ -31,6 +29,15 @@ function TeamBuilder() {
   const handleSetViceCaptain = async (playerId) => {
     const result = await setViceCaptain(playerId)
     if (!result.success) alert(result.error)
+  }
+
+  const handleSaveTeam = async () => {
+    const result = await saveTeam()
+    if (result.success) {
+      alert('Team saved!')
+    } else {
+      alert(result.error)
+    }
   }
 
   if (isDeadlinePassed) {
@@ -129,24 +136,10 @@ function TeamBuilder() {
             </div>
           ) : (
             <div className="text-center mt-8">
-              <input
-                type="text"
-                placeholder="Team name"
-                value={teamName}
-                onChange={e => setTeamName(e.target.value)}
-                className="border rounded px-3 py-2 mr-4 bg-white"
-              />
               <button
                 disabled={selectedPlayers.length < 11}
-                onClick={async () => {
-                  const result = await saveTeam(teamName)
-                  if (result.success) {
-                    alert('Team saved!')
-                  } else {
-                    alert(result.error)
-                  }
-                }}
-                className="bg-yellow-500 text-white px-4 py-2 rounded disabled:opacity-50"
+                onClick={handleSaveTeam}
+                className="bg-yellow-500 text-white px-6 py-2 rounded disabled:opacity-50"
               >
                 Save Team
               </button>

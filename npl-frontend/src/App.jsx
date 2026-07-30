@@ -22,6 +22,7 @@ import CricketTeamDetail from "./pages/cricket_teams_detail";
 import AuthCallback from './pages/authcallback';
 import Wallet from './pages/wallet'
 import MockPayment from './pages/mock_payment'
+import Settings from './pages/settings'
 
 
 
@@ -67,6 +68,10 @@ function App() {
         } />
         <Route path="/view-points" element={
           <ProtectedRoute><ViewPoints /></ProtectedRoute>
+        } />
+
+        <Route path="/settings" element={
+          <ProtectedRoute><Settings /></ProtectedRoute>
         } />
         
        <Route path="/wallet" element={

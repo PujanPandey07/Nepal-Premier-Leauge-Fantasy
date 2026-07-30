@@ -124,13 +124,25 @@ class UserPublicSerializer(serializers.ModelSerializer):
 
 
 class UserPrivateSerializer(serializers.ModelSerializer):
+    favorite_team_detail = CricketTeamSerializer(
+        source='favorite_team', read_only=True)
+    favorite_players_detail = PlayerSerializer(
+        source='favorite_players', many=True, read_only=True)
+
     class Meta:
         model = User
         fields = ['id', 'name', 'email', 'phone_no',
                   'profile_picture', 'wallet_balance',
-                  'is_verified', 'created_at']
-        read_only_fields = ['id',
-                            'is_verified', 'created_at']
+                  'is_verified', 'created_at', 'team_name',
+                  'favorite_team', 'favorite_team_detail',
+                  'favorite_players', 'favorite_players_detail']
+        read_only_fields = ['id', 'is_verified', 'created_at']
+
+    def validate_favorite_players(self, value):
+        if len(value) > 3:
+            raise serializers.ValidationError(
+                "You can select at most 3 favorite players.")
+        return value
 
 
 class FantasyTeamSerializer(serializers.ModelSerializer):
