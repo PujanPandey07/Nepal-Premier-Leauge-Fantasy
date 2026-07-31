@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [showTeamNameModal, setShowTeamNameModal] = useState(false)
 
   const navigate = useNavigate()
+  const BRAND = '#38003c'
 
   useEffect(() => {
     // NOTE: confirm this matches whatever key your login flow actually
@@ -232,6 +233,7 @@ export default function Dashboard() {
                 </>
               ) : (
                 <>
+                
                   <Link
                     to="/build-team"
                     className="bg-yellow-400 text-slate-950 px-5 py-3 rounded-full font-semibold hover:bg-yellow-300 transition-colors"
@@ -336,6 +338,22 @@ export default function Dashboard() {
         ) : (
           <p className="text-gray-500 mb-10">No upcoming matches right now.</p>
         )}
+
+        <Link
+          to="/rules"
+          className="block mb-10 rounded-2xl border border-dashed p-5 hover:shadow-md transition-shadow"
+          style={{ borderColor: BRAND }}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-gray-900">Want to play? Learn the rules</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Squad rules, scoring system, deadlines — everything explained.
+              </p>
+            </div>
+            <span className="text-sm font-semibold" style={{ color: BRAND }}>Learn Rules →</span>
+          </div>
+        </Link>
 
         {pastMatches.length > 0 && (
           <div className="mb-10">

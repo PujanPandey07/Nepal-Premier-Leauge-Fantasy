@@ -2,14 +2,16 @@ import { useState, useContext, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { TeamContext, ROLE_LIMITS } from '../context/teamcontext'
 import Navbar from '../components/navbar'
+import PlayerDrawer from '../components/PlayerDrawer'
+import PlayerDetailModal from '../components/PlayerDetailModal'
 
 function TeamBuilder() {
   const { matchId } = useParams()
   const { selectedPlayers, removePlayer, savedTeamId, loadMatch } = useContext(TeamContext)
   const { captainId, viceCaptainId, setCaptain, setViceCaptain, saveTeam, isDeadlinePassed } = useContext(TeamContext)
+  const [openRole, setOpenRole] = useState(null)
+  const [detailPlayerId, setDetailPlayerId] = useState(null)
 
-  // Tell TeamContext which match we're building for.
-  // Runs whenever matchId changes (e.g. user navigates to a different match).
   useEffect(() => {
     loadMatch(matchId)
   }, [matchId])
@@ -94,9 +96,12 @@ function TeamBuilder() {
                   {playersInRole.map(player => (
                     <div key={player.id} className="flex flex-col items-center w-24">
                       <div className="relative">
-                        <div className="w-14 h-14 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-lg">
+                        <button
+                          onClick={() => setDetailPlayerId(player.id)}
+                          className="w-14 h-14 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-lg"
+                        >
                           {player.name.charAt(0)}
-                        </div>
+                        </button>
                         {player.id === captainId && (
                           <span className="absolute -top-1 -right-1 bg-white text-yellow-600 border border-yellow-600 rounded-full w-5 h-5 text-[10px] font-bold flex items-center justify-center">C</span>
                         )}
@@ -117,13 +122,13 @@ function TeamBuilder() {
                   ))}
 
                   {Array.from({ length: emptySlots }).map((_, i) => (
-                    <Link
+                    <button
                       key={i}
-                      to={`/build-team/${matchId}/players?role=${role}`}
+                      onClick={() => setOpenRole(role)}
                       className="w-14 h-14 rounded-full bg-white/20 border-2 border-dashed border-white flex items-center justify-center text-white text-2xl self-start"
                     >
                       +
-                    </Link>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -147,6 +152,21 @@ function TeamBuilder() {
           )}
         </div>
       </div>
+
+      {openRole && (
+        <PlayerDrawer
+          role={openRole}
+          onClose={() => setOpenRole(null)}
+          onSelectPlayer={(playerId) => setDetailPlayerId(playerId)}
+        />
+      )}
+
+      {detailPlayerId && (
+        <PlayerDetailModal
+          playerId={detailPlayerId}
+          onClose={() => setDetailPlayerId(null)}
+        />
+      )}
     </div>
   )
 }

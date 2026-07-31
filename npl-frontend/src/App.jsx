@@ -23,6 +23,7 @@ import AuthCallback from './pages/authcallback';
 import Wallet from './pages/wallet'
 import MockPayment from './pages/mock_payment'
 import Settings from './pages/settings'
+import Rules from "./pages/rules";
 
 
 
@@ -61,6 +62,7 @@ function App() {
         <Route path="/news/:newsId" element={<NewsDetail />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/mock-payment" element={<MockPayment />} />
+        <Route path="/rules" element={<Rules />} />
 
         {/* Protected routes — login required */}
         <Route path="/view-team" element={

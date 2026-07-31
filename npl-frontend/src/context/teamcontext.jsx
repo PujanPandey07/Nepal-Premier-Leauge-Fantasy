@@ -220,7 +220,7 @@ export function TeamProvider({ children }) {
     return { success: true }
   }
 
-  const saveTeam = async (teamName) => {
+  const saveTeam = async () => {
     const token = localStorage.getItem('refreshtoken')
     if (!token) return { success: false, error: 'You must be logged in to save a team' }
     if (!match) return { success: false, error: 'Match data not loaded yet' }
@@ -228,6 +228,14 @@ export function TeamProvider({ children }) {
 
     const headers = { Authorization: `Bearer ${token}` }
     try {
+      // Team name now lives on the user's profile (set once via Settings),
+      // not entered per team — pull it here instead of taking it as an argument.
+      const profileRes = await axiosInstance.get('/api/users/me/', { headers })
+      const teamName = profileRes.data.team_name
+      if (!teamName) {
+        return { success: false, error: 'Please set your team name in Settings first' }
+      }
+
       const teamRes = await axiosInstance.post(
         '/api/fantasy-teams/',
         { tournament: tournament.id, match: match.id, name: teamName, deadline: match.match_date },
