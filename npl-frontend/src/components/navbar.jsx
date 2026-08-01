@@ -1,22 +1,39 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import axiosInstance from '../utilis/axiosInstance'
+import auth, { getAccessToken } from '../utilis/auth'
 
 function Navbar() {
   const navigate = useNavigate()
-  const isLoggedIn = !!localStorage.getItem('refreshtoken')
+  const [isLoggedIn, setIsLoggedIn] = useState(!!getAccessToken())
   const [balance, setBalance] = useState(null)
 
   useEffect(() => {
-    if (!isLoggedIn) return
-    axiosInstance.get('/api/users/me/')
-      .then(res => setBalance(res.data.wallet_balance))
-      .catch(() => {})
-  }, [isLoggedIn])
+    let mounted = true
+    async function init() {
+      if (!getAccessToken()) {
+        // try silent refresh — will populate in-memory access token if cookie present
+        const res = await auth.tryRefresh()
+        if (mounted && res && res.access) setIsLoggedIn(true)
+      }
 
-  const handleLogout = () => {
-    localStorage.removeItem('refreshtoken')
-    localStorage.removeItem('token')
+      if (getAccessToken()) {
+        try {
+          const res = await axiosInstance.get('/api/users/me/')
+          if (mounted) setBalance(res.data.wallet_balance)
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
+    init()
+    return () => { mounted = false }
+  }, [])
+
+  const handleLogout = async () => {
+    await auth.logout()
+    setIsLoggedIn(false)
     navigate('/login')
   }
 

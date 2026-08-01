@@ -2,7 +2,8 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
 from rest_framework_simplejwt.tokens import RefreshToken
 from allauth.socialaccount.models import SocialAccount
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.conf import settings
 from .serializers import CustomTokenObtainPairSerializer
 from .permissions import IsAdminOrReadOnly, IsAuthenticated
 from decimal import Decimal
@@ -37,6 +38,13 @@ from .filters import PlayerFilter, TournamentFilter, LeagueFilter
 from .pagination import StandardPagination
 from .caching import CacheInvalidateMixin
 from .tasks import send_welcome_email, send_match_reminder
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.response import Response
+from rest_framework import status
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 
 class SportsView(CacheInvalidateMixin, viewsets.ModelViewSet):
@@ -269,7 +277,17 @@ class LeagueView(viewsets.ModelViewSet):
                 payment_method='wallet'
             )
 
-        LeagueMember.objects.create(user=request.user, league=league)
+        member = LeagueMember.objects.create(user=request.user, league=league)
+        # If the user has an existing fantasy team for this tournament, link
+        # their latest team as the membership's `fantasy_team` for display/points
+        try:
+            latest_team = Fantasy_Team.objects.filter(
+                user=request.user, tournament=league.tournament).order_by('-created_at').first()
+            if latest_team:
+                member.fantasy_team = latest_team
+                member.save()
+        except Exception:
+            pass
         return Response(
             {'detail': 'Successfully joined the league.'},
             status=status.HTTP_201_CREATED
@@ -359,6 +377,118 @@ class VerifyPaymentView(APIView):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
+    def post(self, request, *args, **kwargs):
+        # Use the normal TokenObtainPair logic, then set refresh cookie
+        response = super().post(request, *args, **kwargs)
+        try:
+            if response.status_code == 200 and 'refresh' in response.data:
+                refresh = response.data.get('refresh')
+                # set HttpOnly cookie for refresh token
+                response.set_cookie(
+                    'jwt-refresh-auth',
+                    refresh,
+                    httponly=True,
+                    secure=not settings.DEBUG,
+                    samesite='Lax',
+                    path='/'
+                )
+                # Ensure credentials header for CORS preflight consumers
+                try:
+                    response['Access-Control-Allow-Credentials'] = 'true'
+                except Exception:
+                    pass
+        except Exception:
+            # non-fatal — return the original response even if cookie couldn't be set
+            pass
+        return response
+
+
+class CookieTokenRefreshView(TokenRefreshView):
+    """Read refresh token from HttpOnly cookie (jwt-refresh-auth) if present.
+    Falls back to refresh in request body for compatibility.
+    """
+
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get(
+            'jwt-refresh-auth') or request.data.get('refresh')
+        if not refresh_token:
+            return Response({'detail': 'Refresh token not provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data={'refresh': refresh_token})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception:
+            return Response({'detail': 'Refresh token invalid or expired.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        data = serializer.validated_data
+        resp = Response(data, status=status.HTTP_200_OK)
+        # If rotation provided a new refresh token, persist it in cookie
+        if 'refresh' in data:
+            resp.set_cookie(
+                'jwt-refresh-auth',
+                data['refresh'],
+                httponly=True,
+                secure=not settings.DEBUG,
+                samesite='Lax',
+                path='/'
+            )
+        try:
+            resp['Access-Control-Allow-Credentials'] = 'true'
+        except Exception:
+            pass
+        return resp
+
+
+@csrf_exempt
+def token_refresh_with_cors(request, *args, **kwargs):
+    """Wrapper for the Token refresh endpoint that explicitly responds to
+    OPTIONS preflight with the required CORS credentials header. POST is
+    delegated to the existing CookieTokenRefreshView.
+    """
+    # Handle preflight explicitly so browsers see Access-Control-Allow-Credentials
+    if request.method == 'OPTIONS':
+        origin = request.META.get('HTTP_ORIGIN') or '*'
+        resp = HttpResponse()
+        resp['Access-Control-Allow-Origin'] = origin
+        resp['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        resp['Access-Control-Allow-Headers'] = 'accept, authorization, content-type, x-csrftoken, x-requested-with'
+        resp['Access-Control-Allow-Credentials'] = 'true'
+        resp['Access-Control-Max-Age'] = '86400'
+        return resp
+
+    # For POST, delegate to the TokenRefreshView implementation
+    view = CookieTokenRefreshView.as_view()
+    return view(request, *args, **kwargs)
+
+
+class LogoutView(APIView):
+    """Log the user out by blacklisting the refresh token (if present) and clearing the cookie."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # try to read refresh from cookie first, then body
+        refresh_token = request.COOKIES.get(
+            'jwt-refresh-auth') or request.data.get('refresh')
+
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                # blacklist if the app has blacklist enabled
+                try:
+                    token.blacklist()
+                except Exception:
+                    # blacklist may not be enabled; ignore
+                    pass
+            except Exception:
+                # token invalid/expired — we still proceed to clear cookie
+                pass
+
+        # clear cookie
+        resp = Response({'detail': 'Logged out.'}, status=status.HTTP_200_OK)
+        resp.delete_cookie('jwt-refresh-auth', path='/')
+        return resp
+
 
 # views.py
 
@@ -384,9 +514,23 @@ class GoogleLoginCompleteView(APIView):
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
-        return redirect(
-            f'http://localhost/auth/callback?access={access_token}&refresh={refresh_token}'
+        # Persist refresh token in a HttpOnly cookie so the SPA can
+        # silently obtain an access token via the cookie-based refresh
+        # endpoint. Avoid placing tokens in the URL.
+        resp = redirect('http://localhost/auth/callback')
+        resp.set_cookie(
+            'jwt-refresh-auth',
+            refresh_token,
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite='Lax',
+            path='/'
         )
+        try:
+            resp['Access-Control-Allow-Credentials'] = 'true'
+        except Exception:
+            pass
+        return resp
 
 
 class MeView(APIView):

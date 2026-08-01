@@ -27,7 +27,12 @@ export default function Settings() {
                 setFavoriteTeam(userRes.data.favorite_team || '')
                 setFavoritePlayers(userRes.data.favorite_players || [])
                 setCricketTeams(teamsRes.data.results || teamsRes.data)
-                setAllPlayers(playersRes.data.results || playersRes.data)
+                // Normalize players and ensure credit_value is numeric
+                const players = (playersRes.data.results || playersRes.data || []).map(p => ({
+                    ...p,
+                    credit_value: Number(p.credit_value)
+                }))
+                setAllPlayers(players)
             })
             .catch(err => console.error('Error loading profile:', err))
             .finally(() => setLoading(false))
@@ -85,12 +90,11 @@ export default function Settings() {
         )
     }
 
-    // Players filtered to the favorite team, if one's picked — makes
-    // the list manageable instead of scrolling through every player.
-    // team ids are UUID strings, so compare directly — no Number() conversion.
-    const playerPool = favoriteTeam
-        ? allPlayers.filter(p => p.team === favoriteTeam)
-        : allPlayers
+    // Show top 20 players by `credit_value` (price) regardless of favorite team.
+    // If you later want to scope by favorite team, we can add a toggle.
+    const playerPool = [...allPlayers]
+        .sort((a, b) => (b.credit_value || 0) - (a.credit_value || 0))
+        .slice(0, 20)
 
     return (
         <div className="min-h-screen bg-gray-100">

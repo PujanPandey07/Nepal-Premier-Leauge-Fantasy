@@ -11,12 +11,17 @@ from .tasks import send_points_updated_notification
 
 
 def _refresh_team_player_points(match):
+    # If the match is completed, include all innings for that match
+    # (some ingestion flows may not mark every Innings.is_complete correctly
+    # at the exact same time the match status flips). For non-completed
+    # matches only include performances tied to completed innings.
+    perf_qs = Player_Match_Performance.objects.filter(match=match)
+    if match.status != 'completed':
+        perf_qs = perf_qs.filter(innings__is_complete=True)
+
     player_points = {
         row['player']: row['total_points'] or 0
-        for row in Player_Match_Performance.objects.filter(
-            match=match,
-            innings__is_complete=True,
-        ).values('player').annotate(total_points=Sum('fantasy_points'))
+        for row in perf_qs.values('player').annotate(total_points=Sum('fantasy_points'))
     }
 
     fantasy_teams = Fantasy_Team.objects.filter(
@@ -106,9 +111,13 @@ def update_league_rankings(sender, instance, **kwargs):
             Fantasy_Team.objects.filter(pk=team.pk).update(
                 total_points=total_points)
 
+            # Only add points for league members who had joined the league
+            # before this match started. This ensures a member's points reflect
+            # only matches that occurred after they joined.
             LeagueMember.objects.filter(
                 user=team.user,
-                league__tournament=instance.tournament
+                league__tournament=instance.tournament,
+                joined_at__lte=instance.match_date
             ).update(points=F('points') + total_points)
 
             # update rankings by ordering members by points
@@ -123,16 +132,29 @@ def update_league_rankings(sender, instance, **kwargs):
             winner = LeagueMember.objects.filter(
                 league=league, ranking=1).first()
             if winner:
-                User.objects.filter(pk=winner.user.pk).update(
-                    wallet_balance=F('wallet_balance') + league.prize_pool
-                )
-                Transaction.objects.create(
+                # Avoid double-crediting: make this payout idempotent by
+                # attaching a predictable reference_id and skipping if
+                # an identical payout transaction already exists.
+                ref = f"league_{league.id}_tournament_{instance.tournament.id}_match_{instance.id}"
+                exists = Transaction.objects.filter(
                     user=winner.user,
                     amount=league.prize_pool,
                     type='credit',
-                    status='completed',
-                    payment_method='wallet'
-                )
+                    payment_method='wallet',
+                    reference_id=ref,
+                ).exists()
+                if not exists:
+                    User.objects.filter(pk=winner.user.pk).update(
+                        wallet_balance=F('wallet_balance') + league.prize_pool
+                    )
+                    Transaction.objects.create(
+                        user=winner.user,
+                        amount=league.prize_pool,
+                        type='credit',
+                        status='completed',
+                        payment_method='wallet',
+                        reference_id=ref,
+                    )
         send_points_updated_notification.delay(instance.id)
 
 

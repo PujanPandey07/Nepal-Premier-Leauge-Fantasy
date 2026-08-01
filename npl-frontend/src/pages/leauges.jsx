@@ -8,6 +8,9 @@ import  axiosInstance  from '../utilis/axiosInstance'
 function Leagues() {
   const [allLeagues, setAllLeagues] = useState([])
   const [myLeagues, setMyLeagues] = useState([])
+  const [members, setMembers] = useState([])
+  const [fantasyTeamMap, setFantasyTeamMap] = useState({})
+  const [userData, setUserData] = useState({})
   const [activeTab, setActiveTab] = useState('all')
   const [nextPage, setNextPage] = useState(null)
   const [prevPage, setPrevPage] = useState(null)
@@ -31,39 +34,52 @@ function Leagues() {
   const isLoggedIn = !!token
   const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
+  const currentUserId = token
+    ? JSON.parse(atob(token.split('.')[1])).user_id
+    : null
   useEffect(() => {
     // Fetch leagues and memberships in parallel
     Promise.all([
       axiosInstance.get('/api/leagues/', { headers }),
       isLoggedIn
-        ? axiosInstance.get('/api/league-members/', { headers })
-            .catch(() => ({ data: { results: [] } }))
+        ? axiosInstance.get('/api/league-members/', { headers }).catch(() => ({ data: { results: [] } }))
         : Promise.resolve({ data: { results: [] } }),
       isLoggedIn
         ? axiosInstance.get('/api/tournaments/', { headers })
         : Promise.resolve({ data: { results: [] } }),
+      isLoggedIn
+        ? axiosInstance.get('/api/fantasy-teams/', { headers }).catch(() => ({ data: { results: [] } }))
+        : Promise.resolve({ data: { results: [] } }),
+      isLoggedIn
+        ? axiosInstance.get('/api/users/me/', { headers }).catch(() => ({ data: {} }))
+        : Promise.resolve({ data: {} }),
     ])
-      .then(([leaguesRes, membersRes, tournamentsRes]) => {
+      .then(([leaguesRes, membersRes, tournamentsRes, fantasyTeamsRes, meRes]) => {
         const leagues = leaguesRes.data.results || leaguesRes.data
         setAllLeagues(leagues)
         setNextPage(leaguesRes.data.next)
         setPrevPage(leaguesRes.data.previous)
         setTournaments(tournamentsRes.data.results || tournamentsRes.data)
 
-        const members = membersRes.data.results || membersRes.data || []
-        const myLeagueIds = members.map(m => m.league)
-        const currentUserId = token
-          ? JSON.parse(atob(token.split('.')[1])).user_id
-          : null
+        const membersList = membersRes.data.results || membersRes.data || []
+        setMembers(membersList)
+        const myLeagueIds = membersList.map(m => m.league)
+
+        const fantasyTeams = fantasyTeamsRes.data.results || fantasyTeamsRes.data || []
+        const me = meRes.data || {}
+        const teamMap = {}
+        fantasyTeams.forEach(t => { teamMap[t.id] = t })
 
         const mine = leagues.filter(l =>
           myLeagueIds.includes(l.id) || l.created_by === currentUserId
         )
         setMyLeagues(mine)
+        setFantasyTeamMap(teamMap)
+        setUserData(me)
       })
-      .catch(error => console.error('Error fetching leagues:', error))
-      .finally(() => setLoading(false))
-  }, [])
+        .catch(error => console.error('Error fetching leagues:', error))
+        .finally(() => setLoading(false))
+      }, [])
 
   const goToPage = (url) => {
     if (!url) return
@@ -141,12 +157,13 @@ function Leagues() {
 
   const LeagueTable = ({ leagues }) => (
     <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="grid grid-cols-5 bg-gray-800 text-white text-sm font-semibold p-4">
-        <span>League</span>
+      <div className="grid grid-cols-6 bg-gray-800 text-white text-sm font-semibold p-4">
+        <span>League / Your Team</span>
         <span>Entry Fee</span>
         <span>Prize Pool</span>
         <span>Status</span>
         <span>Members</span>
+        <span>Your Points</span>
       </div>
       {leagues.length === 0 ? (
         <p className="text-gray-500 text-sm p-4">No leagues found.</p>
@@ -155,17 +172,27 @@ function Leagues() {
           <Link
             key={league.id}
             to={`/leagues/${league.id}`}
-            className="grid grid-cols-5 items-center p-4 border-b border-gray-200 hover:bg-gray-50"
+            className="grid grid-cols-6 items-center p-4 border-b border-gray-200 hover:bg-gray-50 gap-4"
           >
-            <span className="font-medium text-gray-800 truncate pr-2">{league.name}</span>
-            <span className="text-gray-600">{league.entry_fee}</span>
-            <span className="text-gray-600">{league.prize_pool}</span>
-            <span className={`font-medium ${league.status === 'open' ? 'text-green-600' : 'text-gray-500'}`}>
+            <div className="truncate">
+              <div className="font-semibold text-gray-800 truncate">{league.name}</div>
+              <div className="text-xs text-gray-500">{league.tournament?.name || ''}</div>
+            </div>
+
+            <div className="text-gray-600">{league.entry_fee}</div>
+            <div className="text-gray-600">{league.prize_pool}</div>
+            <div className={`font-medium ${league.status === 'open' ? 'text-green-600' : 'text-gray-500'}`}>
               {league.status}
-            </span>
-            <span className="text-blue-600 font-bold">
+            </div>
+            <div className="text-blue-600 font-bold">
               {league.member_count}/{league.max_members}
-            </span>
+            </div>
+            <div className="text-gray-800 font-semibold">
+              {(() => {
+                const member = members.find(m => m.league === league.id && (m.user === currentUserId || league.created_by === currentUserId))
+                return member ? (member.points || 0) : '-'
+              })()}
+            </div>
           </Link>
         ))
       )}

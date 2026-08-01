@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import axios from 'axios'
+import { setAccessToken } from '../utilis/auth'
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -18,9 +19,10 @@ function Login() {
       const response = await axios.post('http://localhost:8000/api/token/', {
         email,
         password,
-      })
-      localStorage.setItem('token', response.data.access)
-      localStorage.setItem('refreshtoken', response.data.refresh)
+      }, { withCredentials: true })
+
+      // server sets refresh token cookie (HttpOnly). Keep only access token in memory.
+      setAccessToken(response.data.access)
       window.location.href = '/'
     } catch (error) {
       const data = error.response?.data

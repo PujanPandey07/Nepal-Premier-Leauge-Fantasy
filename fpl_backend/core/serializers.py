@@ -120,7 +120,8 @@ class NewsSerializer(serializers.ModelSerializer):
 class UserPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'name', 'profile_picture']
+        # expose team_name so frontend can show the user's fantasy team name
+        fields = ['id', 'name', 'profile_picture', 'team_name']
 
 
 class UserPrivateSerializer(serializers.ModelSerializer):
@@ -246,7 +247,53 @@ class LeagueSerializer(serializers.ModelSerializer):
         # Only generate invite code for private leagues
         if not validated_data.get('is_public', True):
             validated_data['invite_code'] = secrets.token_urlsafe(6)
-        return League.objects.create(**validated_data)
+        # allow perform_create in the view to pass created_by via serializer.save(created_by=...)
+        created_by = None
+        # DRF passes extra kwargs to create as additional parameters; support both styles
+        # (create(validated_data, created_by=...))
+        try:
+            # look for created_by in the validated_data or context
+            created_by = validated_data.pop('created_by', None)
+        except Exception:
+            created_by = None
+
+        league = League.objects.create(
+            **validated_data, created_by=created_by) if created_by else League.objects.create(**validated_data)
+
+        # add the creator as a member of their league
+        try:
+            from .models import LeagueMember
+            if created_by:
+                member = LeagueMember.objects.create(
+                    user=created_by, league=league)
+                # link creator's latest fantasy team for the same tournament, if any
+                try:
+                    latest_team = Fantasy_Team.objects.filter(
+                        user=created_by, tournament=league.tournament).order_by('-created_at').first()
+                    if latest_team:
+                        member.fantasy_team = latest_team
+                        member.save()
+                except Exception:
+                    pass
+            else:
+                # fallback: try to get request user from context
+                request = self.context.get('request')
+                if request and getattr(request, 'user', None) and request.user.is_authenticated:
+                    member = LeagueMember.objects.create(
+                        user=request.user, league=league)
+                    try:
+                        latest_team = Fantasy_Team.objects.filter(
+                            user=request.user, tournament=league.tournament).order_by('-created_at').first()
+                        if latest_team:
+                            member.fantasy_team = latest_team
+                            member.save()
+                    except Exception:
+                        pass
+        except Exception:
+            # non-fatal: membership creation shouldn't block league creation
+            pass
+
+        return league
 
 
 class LeagueMemberSerializer(serializers.ModelSerializer):

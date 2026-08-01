@@ -47,14 +47,14 @@ function LeagueDetails() {
                 return Promise.all(
                     memberList.map(m =>
                         axiosInstance.get(`/api/users/${m.user}/`)
-                            .then(res => ({ id: m.user, name: res.data.name }))
-                            .catch(() => ({ id: m.user, name: 'Unknown' }))
+                            .then(res => ({ id: m.user, name: res.data.name, team_name: res.data.team_name }))
+                            .catch(() => ({ id: m.user, name: 'Unknown', team_name: '' }))
                     )
                 )
             })
             .then(userDetails => {
                 const userMap = {}
-                userDetails.forEach(u => { userMap[u.id] = u.name })
+                userDetails.forEach(u => { userMap[u.id] = { name: u.name, team_name: u.team_name } })
                 setUsers(userMap)
             })
     }
@@ -101,7 +101,8 @@ function LeagueDetails() {
 
     const isFull = league.member_count >= league.max_members
     const isOpen = league.status === 'open'
-    const sortedMembers = [...members].sort((a, b) => a.ranking - b.ranking)
+    // Order members by points descending so leaderboard shows highest points first
+    const sortedMembers = [...members].sort((a, b) => (b.points || 0) - (a.points || 0))
 
     return (
         <div className="min-h-screen bg-gray-100">
@@ -211,8 +212,10 @@ function LeagueDetails() {
                         </thead>
                         <tbody>
                             {sortedMembers.map((member, index) => {
-                                const name = users[member.user] || 'Loading...'
-                                const initials = name.split(' ').map(n => n[0]).join('')
+                                const userObj = users[member.user] || { name: 'Loading...', team_name: '' }
+                                const name = userObj.name
+                                const teamName = userObj.team_name || ''
+                                const initials = (name || teamName).split(' ').map(n => n[0]).join('')
                                 const rank = member.ranking || index + 1
                                 const isTopThree = rank <= 3
 
@@ -236,9 +239,12 @@ function LeagueDetails() {
                                                 <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-xs font-bold text-purple-800 flex-shrink-0">
                                                     {initials}
                                                 </div>
-                                                <span className={`font-medium ${isTopThree ? 'text-gray-900' : 'text-gray-700'}`}>
-                                                    {name}
-                                                </span>
+                                                <div>
+                                                    <div className={`font-semibold ${isTopThree ? 'text-gray-900' : 'text-gray-800'}`}>
+                                                        {teamName || name}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">{teamName ? name : ''}</div>
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-right font-bold text-gray-900">

@@ -2,11 +2,38 @@
 // Wraps any route that requires login.
 // If no token found, shows a message with a login link instead of the page.
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { tryRefresh, getAccessToken } from '../utilis/auth'
 
 export default function ProtectedRoute({ children }) {
-    const token = localStorage.getItem('refreshtoken')
+    const [status, setStatus] = useState('checking') // 'checking' | 'authed' | 'unauth'
 
-    if (!token) {
+    useEffect(() => {
+        let mounted = true
+        async function check() {
+            const token = getAccessToken()
+            if (token) {
+                if (mounted) setStatus('authed')
+                return
+            }
+
+            const res = await tryRefresh()
+            if (mounted) setStatus(res && res.access ? 'authed' : 'unauth')
+        }
+
+        check()
+        return () => { mounted = false }
+    }, [])
+
+    if (status === 'checking') {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <p className="text-gray-400">Checking authentication...</p>
+            </div>
+        )
+    }
+
+    if (status === 'unauth') {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
                 <p className="text-xl font-semibold text-gray-700 mb-2">

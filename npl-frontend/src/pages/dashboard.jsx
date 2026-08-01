@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/navbar'
 import TeamNameModal from '../components/Teamnamemodel'
 import axiosInstance from '../utilis/axiosInstance'
+import { fetchAllPages } from '../utilis/fetchAllPages'
 
 export default function Dashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -18,6 +19,7 @@ export default function Dashboard() {
   const [myLeagues, setMyLeagues] = useState([])
   const [topNews, setTopNews] = useState([])
   const [loading, setLoading] = useState(true)
+  const [matchesList, setMatchesList] = useState([])
 
   // Favorites — used to highlight relevant content, pulled from the same
   // /api/users/me/ call that checks whether the team-name modal is needed
@@ -46,6 +48,7 @@ export default function Dashboard() {
     ])
       .then(([matchesRes, teamsRes, leaguesRes, playersRes, newsRes]) => {
         const allMatches = matchesRes.data.results || matchesRes.data
+        setMatchesList(allMatches)
         const teamList = teamsRes.data.results || teamsRes.data
         const leagues = leaguesRes.data.results || leaguesRes.data
         const players = playersRes.data.results || playersRes.data
@@ -75,61 +78,71 @@ export default function Dashboard() {
 
         setTopPlayers(players.slice(0, 5))
         setTopNews(news.slice(0, 3))
+
+        // After public data is loaded, run personal (token-protected)
+        // fetches so we can reliably look up match dates when
+        // computing latest/team totals.
+        if (token) {
+          // Profile fetch — checks whether the one-time team name prompt is
+          // needed, and pulls favorites for highlighting content below
+          axiosInstance.get('/api/users/me/')
+            .then(res => {
+              if (!res.data.team_name) {
+                setShowTeamNameModal(true)
+              }
+              setFavoriteTeamId(res.data.favorite_team || null)
+              setFavoritePlayerIds(res.data.favorite_players || [])
+            })
+            .catch(err => console.error('Error checking user profile:', err))
+
+          Promise.all([
+            fetchAllPages('/api/fantasy-teams/?page_size=20'),
+            axiosInstance.get('/api/league-members/')
+              .catch(() => ({ data: { results: [] } })),
+          ])
+            .then(([teams, membersRes]) => {
+              // `fetchAllPages` returns an array of teams directly
+              const members = membersRes.data.results || membersRes.data || []
+
+              setFantasyTeams(teams)
+
+              const total = teams.reduce((sum, t) => sum + (t.total_points || 0), 0)
+              setSeasonPoints(total)
+
+              if (teams.length > 0) {
+                const getMatchDateForTeam = (t) => {
+                  const matchId = t.match && typeof t.match === 'object' ? t.match.id : t.match
+                  const matchObj = allMatches.find(m => m.id === matchId)
+                  if (matchObj && matchObj.match_date) return new Date(matchObj.match_date)
+                  if (t.match_date) return new Date(t.match_date)
+                  return new Date(0)
+                }
+
+                const sortedByMatchDate = [...teams].sort(
+                  (a, b) => getMatchDateForTeam(b) - getMatchDateForTeam(a)
+                )
+                setLatestPoints(sortedByMatchDate[0].total_points || 0)
+              }
+
+              const myLeagueIds = members.map(m => m.league)
+              const currentUserId = JSON.parse(atob(token.split('.')[1])).user_id
+
+              axiosInstance.get('/api/leagues/')
+                .then(res => {
+                  const all = res.data.results || res.data
+                  const mine = all.filter(l =>
+                    myLeagueIds.includes(l.id) || l.created_by === currentUserId
+                  )
+                  setMyLeagues(mine)
+                })
+            })
+            .catch(err => console.error('Error loading personal dashboard:', err))
+            .finally(() => setLoading(false))
+        } else {
+          setLoading(false)
+        }
       })
       .catch(err => console.error('Error loading dashboard:', err))
-
-    // Personal fetches — logged-in users only
-    if (token) {
-      // Profile fetch — checks whether the one-time team name prompt is
-      // needed, and pulls favorites for highlighting content below
-      axiosInstance.get('/api/users/me/')
-        .then(res => {
-          if (!res.data.team_name) {
-            setShowTeamNameModal(true)
-          }
-          setFavoriteTeamId(res.data.favorite_team || null)
-          setFavoritePlayerIds(res.data.favorite_players || [])
-        })
-        .catch(err => console.error('Error checking user profile:', err))
-
-      Promise.all([
-        axiosInstance.get('/api/fantasy-teams/'),
-        axiosInstance.get('/api/league-members/')
-          .catch(() => ({ data: { results: [] } })),
-      ])
-        .then(([fantasyTeamsRes, membersRes]) => {
-          const teams = fantasyTeamsRes.data.results || fantasyTeamsRes.data
-          const members = membersRes.data.results || membersRes.data || []
-
-          setFantasyTeams(teams)
-
-          const total = teams.reduce((sum, t) => sum + (t.total_points || 0), 0)
-          setSeasonPoints(total)
-
-          if (teams.length > 0) {
-            const sortedByMatchDate = [...teams].sort(
-              (a, b) => new Date(b.match_date || 0) - new Date(a.match_date || 0)
-            )
-            setLatestPoints(sortedByMatchDate[0].total_points || 0)
-          }
-
-          const myLeagueIds = members.map(m => m.league)
-          const currentUserId = JSON.parse(atob(token.split('.')[1])).user_id
-
-          axiosInstance.get('/api/leagues/')
-            .then(res => {
-              const all = res.data.results || res.data
-              const mine = all.filter(l =>
-                myLeagueIds.includes(l.id) || l.created_by === currentUserId
-              )
-              setMyLeagues(mine)
-            })
-        })
-        .catch(err => console.error('Error loading personal dashboard:', err))
-        .finally(() => setLoading(false))
-    } else {
-      setLoading(false)
-    }
   }, [])
 
   // Derived, not stored — always reflects the *current* upcomingMatch and

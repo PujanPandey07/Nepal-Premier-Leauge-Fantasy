@@ -4,6 +4,7 @@
 // and redirects to the dashboard.
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { setAccessToken, tryRefresh } from '../utilis/auth'
 
 export default function AuthCallback() {
     const navigate = useNavigate()
@@ -13,14 +14,27 @@ export default function AuthCallback() {
         const access = params.get('access')
         const refresh = params.get('refresh')
 
-        if (access && refresh) {
-            localStorage.setItem('token', access)
-            localStorage.setItem('refreshtoken', refresh)
-            navigate('/')
-        } else {
-            // Something went wrong — go back to login
-            navigate('/login?error=auth_failed')
+        async function finishLogin() {
+            if (access && refresh) {
+                // Backwards-compatible: some flows include tokens in URL.
+                // Keep behaviour simple for now: store access in memory
+                // and refresh in cookie if server provided it.
+                setAccessToken(access)
+                navigate('/')
+                return
+            }
+
+            // Otherwise attempt cookie-based refresh to obtain an access token
+            const res = await tryRefresh()
+            if (res && res.access) {
+                setAccessToken(res.access)
+                navigate('/')
+            } else {
+                navigate('/login?error=auth_failed')
+            }
         }
+
+        finishLogin()
     }, [])
 
     return (

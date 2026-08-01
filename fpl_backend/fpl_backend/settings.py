@@ -41,6 +41,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'core.middleware.ForceCorsCredentialsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -175,6 +176,9 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://localhost',
 ]
+
+# Allow cookies (HttpOnly refresh token) to be sent cross-origin from the frontend
+CORS_ALLOW_CREDENTIALS = True
 
 # ── Test overrides ────────────────────────────────────
 if 'test' in sys.argv:
