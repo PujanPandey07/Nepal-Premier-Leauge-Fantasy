@@ -9,7 +9,7 @@ function Registration() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [errors, setErrors] = useState({})
-  const [success, setSuccess] = useState(false)
+  const [needsVerification, setNeedsVerification] = useState(false)
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
@@ -26,9 +26,9 @@ function Registration() {
         password2: confirmPassword
       }, { withCredentials: true })
 
-      // Server returns access token + sets refresh cookie
+      // Store access token but DON'T redirect — user must verify email first
       setAccessToken(response.data.access)
-      navigate('/')
+      setNeedsVerification(true)
     } catch (error) {
       if (error.response && error.response.data) {
         setErrors(error.response.data)
@@ -40,13 +40,27 @@ function Registration() {
     }
   }
 
-  if (success) {
+  // Verification success screen
+  if (needsVerification) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md text-center">
-          <p className="text-green-600 font-semibold text-lg mb-2">Registration successful!</p>
-          <p className="text-gray-500 text-sm mb-4">You can now log in to your account.</p>
-          <Link to="/login" className="inline-block bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700">
+          <div className="text-green-600 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Check your email</h2>
+          <p className="text-gray-600 mb-2">
+            We sent a verification link to <strong>{email}</strong>
+          </p>
+          <p className="text-gray-500 text-sm mb-6">
+            Click the link in the email to verify your account before logging in.
+          </p>
+          <Link
+            to="/login"
+            className="inline-block bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold"
+          >
             Go to Login
           </Link>
         </div>

@@ -7,13 +7,6 @@ User = get_user_model()
 
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
-    """
-    Auto-completes signup for social (Google) logins by pulling
-    name/email straight from the provider's data, and setting an
-    unusable random password since social users authenticate via
-    Google, not a local password.
-    """
-
     def populate_user(self, request, sociallogin, data):
         user = super().populate_user(request, sociallogin, data)
 
@@ -24,17 +17,16 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
             user.name = extra_data.get('name', '') or data.get('name', '')
 
         user.password = make_password(uuid.uuid4().hex)
+
+        # Google already verified this email — mark as verified
+        user.is_verified = True
+
         return user
 
     def is_auto_signup_allowed(self, request, sociallogin):
         return True
 
-    # NEW: Prevent duplicate accounts when email already exists
     def pre_social_login(self, request, sociallogin):
-        """
-        If a user with this email already exists, connect the social
-        account to that user instead of creating a new one.
-        """
         user = sociallogin.user
         if user.email:
             try:
@@ -45,16 +37,16 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
                 pass
 
     def save_user(self, request, sociallogin, form=None):
-        """
-        If a user with this email already exists, return the existing
-        user and connect the social account to it.
-        """
         user = sociallogin.user
         if user.email:
             try:
                 existing = User.objects.get(email=user.email)
                 if not sociallogin.is_existing:
                     sociallogin.connect(request, existing)
+                # Ensure existing users are also marked verified
+                if not existing.is_verified:
+                    existing.is_verified = True
+                    existing.save(update_fields=['is_verified'])
                 return existing
             except User.DoesNotExist:
                 pass

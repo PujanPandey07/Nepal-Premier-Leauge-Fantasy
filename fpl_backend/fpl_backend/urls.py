@@ -1,6 +1,6 @@
 from core.views import (
     CustomTokenObtainPairView, GoogleLoginCompleteView,
-    CookieTokenRefreshView, LogoutView
+    CookieTokenRefreshView, LogoutView, verify_email_view
 )
 from django.contrib import admin
 from django.urls import path, include
@@ -21,6 +21,7 @@ urlpatterns = [
 
     path('auth/complete/', GoogleLoginCompleteView.as_view()),
     path("accounts/", include("allauth.urls")),
-
+    path('api/auth/verify-email/<str:key>/',
+         verify_email_view, name='verify_email')
 
 ]

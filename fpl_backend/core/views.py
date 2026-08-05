@@ -1,4 +1,7 @@
+from allauth.account.models import EmailConfirmation, EmailConfirmationHMAC
 from rest_framework.permissions import AllowAny
+from allauth.account.models import EmailAddress
+from allauth.account.utils import setup_user_email
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
@@ -12,7 +15,6 @@ from decimal import Decimal
 from django.core.cache import cache
 
 from django.db.models import Sum, Count, F
-from rest_framework.test import APITestCase
 from rest_framework.views import APIView
 from rest_framework import viewsets
 from rest_framework.response import Response
@@ -35,18 +37,13 @@ from .permissions import IsAdminOrReadOnly, IsOwnerOrAdmin, IsAuthenticated, IsL
 from django.utils import timezone
 from datetime import timedelta
 from .khalti import initiate_payment, verify_payment
-from django.db.models import F
 from .filters import PlayerFilter, TournamentFilter, LeagueFilter
 from .pagination import StandardPagination
 from .caching import CacheInvalidateMixin
 from .tasks import send_welcome_email, send_match_reminder
-from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.response import Response
-from rest_framework import status
 from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
+
+User = get_user_model()
 
 
 class SportsView(CacheInvalidateMixin, viewsets.ModelViewSet):
@@ -106,8 +103,6 @@ class PlayerView(CacheInvalidateMixin, viewsets.ModelViewSet):
             matches_played=Count('id'),
         )
 
-        # aggregate() returns None for any field with zero matching rows —
-        # normalize to 0 so the frontend doesn't need to handle null
         return Response({
             'total_runs': totals['total_runs'] or 0,
             'total_wickets': totals['total_wickets'] or 0,
@@ -128,17 +123,15 @@ class MatchView(CacheInvalidateMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         match = serializer.save()
-        # schedule reminder 1 hour before match
         reminder_time = match.match_date - timedelta(hours=1)
         send_match_reminder.apply_async(
             args=[match.id],
-            eta=reminder_time  # run at this specific time
+            eta=reminder_time
         )
         cache.delete(self.cache_key)
 
     @action(detail=True, methods=['get'], url_path='scorecard')
     def scorecard(self, request, pk=None):
-        # prefetch_related avoids N+1 queries across innings -> performances -> player
         match = get_object_or_404(
             Match.objects.prefetch_related('innings__performances__player'),
             pk=pk
@@ -172,7 +165,6 @@ class NewsView(CacheInvalidateMixin, viewsets.ModelViewSet):
 
 
 class UserView(viewsets.ModelViewSet):
-
     queryset = User.objects.all()
     serializer_class = UserPublicSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -224,13 +216,12 @@ class LeagueView(viewsets.ModelViewSet):
     pagination_class = StandardPagination
 
     def get_permissions(self):
-        # join action only needs to be authenticated, not admin
         if self.action in ['join', 'create']:
             return [IsAuthenticated()]
         return super().get_permissions()
 
     def perform_create(self, serializer):
-        league = serializer.save(created_by=self.request.user)
+        serializer.save(created_by=self.request.user)
 
     @action(detail=False, methods=['post'], url_path='join')
     def join(self, request):
@@ -280,8 +271,6 @@ class LeagueView(viewsets.ModelViewSet):
             )
 
         member = LeagueMember.objects.create(user=request.user, league=league)
-        # If the user has an existing fantasy team for this tournament, link
-        # their latest team as the membership's `fantasy_team` for display/points
         try:
             latest_team = Fantasy_Team.objects.filter(
                 user=request.user, tournament=league.tournament).order_by('-created_at').first()
@@ -311,6 +300,15 @@ def register_view(request):
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
+        user.is_verified = False
+        user.save()
+
+        send_welcome_email.delay(user.id)
+
+        setup_user_email(request, user, [])
+        email_address = EmailAddress.objects.get_for_user(user, user.email)
+        email_address.send_confirmation(request)
+
         refresh = RefreshToken.for_user(user)
         access = str(refresh.access_token)
         refresh_token = str(refresh)
@@ -321,7 +319,9 @@ def register_view(request):
                 'id': user.id,
                 'email': user.email,
                 'name': user.name,
-            }
+                'is_verified': False,
+            },
+            'detail': 'Registration successful. Please check your email to verify your account.'
         }, status=status.HTTP_201_CREATED)
 
         response.set_cookie(
@@ -343,7 +343,6 @@ class LeagueMemberView(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'delete']
 
     def get_queryset(self):
-        # Any member can see ALL members of leagues they belong to
         my_league_ids = LeagueMember.objects.filter(
             user=self.request.user
         ).values_list('league_id', flat=True)
@@ -358,7 +357,6 @@ class InitiatePaymentView(APIView):
         if not amount:
             return Response({'detail': 'Amount required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # amount comes in paisa — convert to NPR for storing
         amount_in_npr = int(amount) / 100
 
         transaction = Transaction.objects.create(
@@ -380,7 +378,7 @@ class InitiatePaymentView(APIView):
 
 
 class VerifyPaymentView(APIView):
-    permission_classes = []  # public — Khalti redirect has no JWT token
+    permission_classes = []
 
     def get(self, request):
         pidx = request.query_params.get('pidx')
@@ -397,7 +395,6 @@ class VerifyPaymentView(APIView):
             User.objects.filter(pk=transaction.user.pk).update(
                 wallet_balance=F('wallet_balance') + transaction.amount
             )
-            # Redirect to frontend wallet page with success message
             return redirect('http://localhost/wallet?status=success')
         else:
             transaction.status = 'failed'
@@ -409,9 +406,20 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+
+        try:
+            user = User.objects.get(email=email)
+            if not user.is_verified:
+                return Response(
+                    {'detail': 'Please verify your email before logging in.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except User.DoesNotExist:
+            pass
+
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200 and 'refresh' in response.data:
-            # ← pop, don't just get — removes it from the body
             refresh = response.data.pop('refresh')
             response.set_cookie(
                 'jwt-refresh-auth',
@@ -438,9 +446,8 @@ class CookieTokenRefreshView(TokenRefreshView):
             return Response({'detail': 'Refresh token invalid or expired.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         data = dict(serializer.validated_data)
-        new_refresh = data.pop('refresh', None)  # ← strip before responding
+        new_refresh = data.pop('refresh', None)
 
-        # body now only has {'access': ...}
         resp = Response(data, status=status.HTTP_200_OK)
         if new_refresh:
             resp.set_cookie(
@@ -454,84 +461,40 @@ class CookieTokenRefreshView(TokenRefreshView):
         return resp
 
 
-@csrf_exempt
-def token_refresh_with_cors(request, *args, **kwargs):
-    """Wrapper for the Token refresh endpoint that explicitly responds to
-    OPTIONS preflight with the required CORS credentials header. POST is
-    delegated to the existing CookieTokenRefreshView.
-    """
-    # Handle preflight explicitly so browsers see Access-Control-Allow-Credentials
-    if request.method == 'OPTIONS':
-        origin = request.META.get('HTTP_ORIGIN') or '*'
-        resp = HttpResponse()
-        resp['Access-Control-Allow-Origin'] = origin
-        resp['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-        resp['Access-Control-Allow-Headers'] = 'accept, authorization, content-type, x-csrftoken, x-requested-with'
-        resp['Access-Control-Allow-Credentials'] = 'true'
-        resp['Access-Control-Max-Age'] = '86400'
-        return resp
-
-    # For POST, delegate to the TokenRefreshView implementation
-    view = CookieTokenRefreshView.as_view()
-    return view(request, *args, **kwargs)
-
-
 class LogoutView(APIView):
-    """Log the user out by blacklisting the refresh token (if present) and clearing the cookie."""
-
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # try to read refresh from cookie first, then body
         refresh_token = request.COOKIES.get(
             'jwt-refresh-auth') or request.data.get('refresh')
 
         if refresh_token:
             try:
                 token = RefreshToken(refresh_token)
-                # blacklist if the app has blacklist enabled
                 try:
                     token.blacklist()
                 except Exception:
-                    # blacklist may not be enabled; ignore
                     pass
             except Exception:
-                # token invalid/expired — we still proceed to clear cookie
                 pass
 
-        # clear cookie
         resp = Response({'detail': 'Logged out.'}, status=status.HTTP_200_OK)
         resp.delete_cookie('jwt-refresh-auth', path='/')
         return resp
-
-
-# views.py
-
-
-User = get_user_model()
 
 
 class GoogleLoginCompleteView(APIView):
     permission_classes = []
 
     def get(self, request):
-        # allauth uses Django sessions, not JWT — so we read from session
-        user_id = request.session.get('_auth_user_id')
-        if not user_id:
+        if not request.user.is_authenticated:
             return redirect('http://localhost/login?error=auth_failed')
 
-        try:
-            user = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return redirect('http://localhost/login?error=auth_failed')
-
+        user = request.user
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
-        # Persist refresh token in a HttpOnly cookie so the SPA can
-        # silently obtain an access token via the cookie-based refresh
-        # endpoint. Avoid placing tokens in the URL.
         resp = redirect('http://localhost/auth/callback')
         resp.set_cookie(
             'jwt-refresh-auth',
@@ -541,10 +504,6 @@ class GoogleLoginCompleteView(APIView):
             samesite='Lax',
             path='/'
         )
-        try:
-            resp['Access-Control-Allow-Credentials'] = 'true'
-        except Exception:
-            pass
         return resp
 
 
@@ -558,8 +517,6 @@ class MeView(APIView):
 
     def patch(self, request):
         from .serializers import UserPrivateSerializer
-        # partial=True means only the fields sent will be updated
-        # wallet_balance is read_only so users can't manually set it
         serializer = UserPrivateSerializer(
             request.user,
             data=request.data,
@@ -569,3 +526,16 @@ class MeView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def verify_email_view(request, key):
+    try:
+        confirmation = EmailConfirmationHMAC.from_key(key)
+        if not confirmation:
+            confirmation = EmailConfirmation.objects.get(key=key)
+        confirmation.confirm(request)
+        return redirect('http://localhost/login?verified=success')
+    except Exception:
+        return redirect('http://localhost/login?verified=failed')

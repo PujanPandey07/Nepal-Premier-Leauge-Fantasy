@@ -128,33 +128,41 @@ def update_league_rankings(sender, instance, **kwargs):
         for rank, member in enumerate(members, start=1):
             LeagueMember.objects.filter(
                 pk=member.pk).update(ranking=rank)
-        for league in League.objects.filter(tournament=instance.tournament):
-            winner = LeagueMember.objects.filter(
-                league=league, ranking=1).first()
-            if winner:
-                # Avoid double-crediting: make this payout idempotent by
-                # attaching a predictable reference_id and skipping if
-                # an identical payout transaction already exists.
-                ref = f"league_{league.id}_tournament_{instance.tournament.id}_match_{instance.id}"
-                exists = Transaction.objects.filter(
+        total_matches = Match.objects.filter(
+            tournament=instance.tournament).count()
+
+        completed_matches = Match.objects.filter(
+            tournament=instance.tournament, status='completed').count()
+
+        if completed_matches == total_matches:
+            # NOW distribute prizes
+            for league in League.objects.filter(tournament=instance.tournament):
+                winner = LeagueMember.objects.filter(
+                    league=league, ranking=1).first()
+        if winner:
+            # Avoid double-crediting: make this payout idempotent by
+            # attaching a predictable reference_id and skipping if
+            # an identical payout transaction already exists.
+            ref = f"league_{league.id}_tournament_{instance.tournament.id}_match_{instance.id}"
+            exists = Transaction.objects.filter(
+                user=winner.user,
+                amount=league.prize_pool,
+                type='credit',
+                payment_method='wallet',
+                reference_id=ref,
+            ).exists()
+            if not exists:
+                User.objects.filter(pk=winner.user.pk).update(
+                    wallet_balance=F('wallet_balance') + league.prize_pool
+                )
+                Transaction.objects.create(
                     user=winner.user,
                     amount=league.prize_pool,
                     type='credit',
+                    status='completed',
                     payment_method='wallet',
                     reference_id=ref,
-                ).exists()
-                if not exists:
-                    User.objects.filter(pk=winner.user.pk).update(
-                        wallet_balance=F('wallet_balance') + league.prize_pool
-                    )
-                    Transaction.objects.create(
-                        user=winner.user,
-                        amount=league.prize_pool,
-                        type='credit',
-                        status='completed',
-                        payment_method='wallet',
-                        reference_id=ref,
-                    )
+                )
         send_points_updated_notification.delay(instance.id)
 
 

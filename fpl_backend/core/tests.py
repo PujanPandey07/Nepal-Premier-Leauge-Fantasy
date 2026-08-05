@@ -42,10 +42,10 @@ class SportTest(APITestCase):
 class UserAuthTest(APITestCase):
 
     def test_user_can_register(self):
-        response = self.client.post('/api/auth/registration/', {
+        response = self.client.post('/api/auth/register/', {
             'name': 'Test User',
             'email': 'test@test.com',
-            'password1': 'TestPass123!',
+            'password': 'TestPass123!',
             'password2': 'TestPass123!',
         })
         print(response.data)
@@ -57,7 +57,8 @@ class UserAuthTest(APITestCase):
         User.objects.create_user(
             name='Test User',
             email='test@test.com',
-            password='test123'
+            password='test123',
+            is_verified=True
         )
         response = self.client.post('/api/token/', {
             'email': 'test@test.com',

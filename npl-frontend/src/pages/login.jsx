@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import { setAccessToken } from '../utilis/auth'
 
 function Login() {
+  const [searchParams] = useSearchParams()
+  const verified = searchParams.get('verified')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
@@ -21,17 +23,21 @@ function Login() {
         password,
       }, { withCredentials: true })
 
-      // Server sets refresh token cookie (HttpOnly). Keep only access token in memory.
       setAccessToken(response.data.access)
-      navigate('/')  // ← CHANGED: no more page reload!
+      navigate('/')
     } catch (error) {
       const data = error.response?.data
-      // Handle SimpleJWT's default error format
-      const msg = data?.detail 
-        || data?.non_field_errors?.[0]
-        || (typeof data === 'object' ? Object.values(data)[0] : null)
-        || 'Invalid email or password'
-      setError(msg)
+      const status = error.response?.status
+
+      if (status === 403 && data?.detail?.toLowerCase().includes('verify')) {
+        setError('Please verify your email before logging in. Check your inbox for the verification link.')
+      } else {
+        const msg = data?.detail 
+          || data?.non_field_errors?.[0]
+          || (typeof data === 'object' ? Object.values(data)[0] : null)
+          || 'Invalid email or password'
+        setError(msg)
+      }
     } finally {
       setLoading(false)
     }
@@ -41,6 +47,17 @@ function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6 text-center">NPL Fantasy Login</h2>
+
+        {verified === 'success' && (
+          <p className="text-green-600 text-sm mb-4 bg-green-50 p-3 rounded">
+            ✓ Your email has been verified! You can now log in.
+          </p>
+        )}
+        {verified === 'failed' && (
+          <p className="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded">
+            ✗ Verification link is invalid or expired. Please try registering again.
+          </p>
+        )}
 
         {error && (
           <p className="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded">{error}</p>
