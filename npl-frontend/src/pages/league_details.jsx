@@ -1,11 +1,12 @@
-// LeagueDetails.jsx
 import { useParams, Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import Navbar from '../components/navbar'
 import axiosInstance from '../utilis/axiosInstance'
+import { useAuth } from '../context/AuthContext'
 
 function LeagueDetails() {
     const { leagueId } = useParams()
+    const { userId } = useAuth()  // ← use AuthContext instead of decoding token manually
     const [league, setLeague] = useState(null)
     const [members, setMembers] = useState([])
     const [isMember, setIsMember] = useState(false)
@@ -15,21 +16,8 @@ function LeagueDetails() {
     const [success, setSuccess] = useState(null)
     const [loading, setLoading] = useState(true)
     const [joining, setJoining] = useState(false)
-    const [users, setUsers] = useState({})
-
-    const getCurrentUserId = () => {
-        const token = localStorage.getItem('access')
-        if (!token) return null
-        try {
-            return JSON.parse(atob(token.split('.')[1])).user_id
-        } catch {
-            return null
-        }
-    }
 
     const fetchAll = () => {
-        const currentUserId = getCurrentUserId()
-
         return Promise.all([
             axiosInstance.get(`/api/leagues/${leagueId}/`),
             axiosInstance.get(`/api/league-members/?league=${leagueId}`)
@@ -38,24 +26,11 @@ function LeagueDetails() {
             .then(([leagueRes, membersRes]) => {
                 const leagueData = leagueRes.data
                 setLeague(leagueData)
-                setIsCreator(leagueData.invite_code !== undefined)
+                setIsCreator(leagueData.created_by === userId)
 
                 const memberList = membersRes.data.results || membersRes.data || []
                 setMembers(memberList)
-                setIsMember(memberList.some(m => m.user === currentUserId))
-
-                return Promise.all(
-                    memberList.map(m =>
-                        axiosInstance.get(`/api/users/${m.user}/`)
-                            .then(res => ({ id: m.user, name: res.data.name, team_name: res.data.team_name }))
-                            .catch(() => ({ id: m.user, name: 'Unknown', team_name: '' }))
-                    )
-                )
-            })
-            .then(userDetails => {
-                const userMap = {}
-                userDetails.forEach(u => { userMap[u.id] = { name: u.name, team_name: u.team_name } })
-                setUsers(userMap)
+                setIsMember(memberList.some(m => m.user === userId))
             })
     }
 
@@ -101,14 +76,12 @@ function LeagueDetails() {
 
     const isFull = league.member_count >= league.max_members
     const isOpen = league.status === 'open'
-    // Order members by points descending so leaderboard shows highest points first
     const sortedMembers = [...members].sort((a, b) => (b.points || 0) - (a.points || 0))
 
     return (
         <div className="min-h-screen bg-gray-100">
             <Navbar />
 
-            {/* Header — dark FPL-style bar, league identity + quick meta */}
             <div className="bg-gradient-to-r from-purple-900 via-purple-800 to-indigo-800">
                 <div className="max-w-4xl mx-auto px-6 py-8">
                     <Link to="/leagues" className="text-purple-200 hover:text-white text-sm">
@@ -149,7 +122,6 @@ function LeagueDetails() {
                     </div>
                 )}
 
-                {/* Creator invite code */}
                 {isCreator && !league.is_public && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-center justify-between">
                         <div>
@@ -164,7 +136,6 @@ function LeagueDetails() {
                     </div>
                 )}
 
-                {/* Join action bar — only shown when relevant, not competing with the table */}
                 {!isMember && !isCreator && (
                     <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
                         {!isOpen ? (
@@ -200,7 +171,6 @@ function LeagueDetails() {
                     </div>
                 )}
 
-                {/* Leaderboard — the centerpiece, FPL-style dense table */}
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <table className="w-full text-sm">
                         <thead>
@@ -212,10 +182,11 @@ function LeagueDetails() {
                         </thead>
                         <tbody>
                             {sortedMembers.map((member, index) => {
-                                const userObj = users[member.user] || { name: 'Loading...', team_name: '' }
-                                const name = userObj.name
-                                const teamName = userObj.team_name || ''
-                                const initials = (name || teamName).split(' ').map(n => n[0]).join('')
+                                // name/team_name now come straight from the serializer —
+                                // no more per-member /api/users/{id}/ calls
+                                const name = member.user_name || 'Unknown'
+                                const teamName = member.team_name || ''
+                                const initials = (teamName || name).split(' ').map(n => n[0]).join('')
                                 const rank = member.ranking || index + 1
                                 const isTopThree = rank <= 3
 

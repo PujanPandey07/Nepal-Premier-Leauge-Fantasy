@@ -1,14 +1,12 @@
-// ViewTeam.jsx
+
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ROLE_LIMITS } from '../context/teamcontext'
 import Navbar from '../components/navbar'
-import  axiosInstance  from '../utilis/axiosInstance'
+import axiosInstance from '../utilis/axiosInstance'
 import { fetchAllPages } from '../utilis/fetchAllPages'
 import { fetchMatchPlayerPoints } from '../utilis/fetchMatchPlayerPoints'
 
-// same "which matches are currently buildable" rule used on the Matches page —
-// the earliest open match's calendar day, so double-headers return 2 matches
 function getBuildableMatches(allMatches) {
   const now = new Date()
   const isOpen = (m) => now < new Date(m.match_date) - 30 * 60 * 1000
@@ -30,26 +28,16 @@ function ViewTeam() {
   const [loadingSquad, setLoadingSquad] = useState(false)
   const [noTeamForCurrent, setNoTeamForCurrent] = useState(false)
 
-  const token = localStorage.getItem('refreshtoken')
-  const headers = { Authorization: `Bearer ${token}` }
-
-  // Layer 1: figure out every currently-buildable match (1 normally, 2 on a double-header)
+  // Layer 1: figure out every currently-buildable match
   useEffect(() => {
-    if (!token) {
-      setLoadingList(false)
-      return
-    }
-
     Promise.all([
       fetchAllPages('/api/matches/?page_size=20'),
       fetchAllPages('/api/cricket-teams/?page_size=20'),
     ])
       .then(([allMatches, teamListData]) => {
-
         const teamMap = {}
         teamListData.forEach(t => { teamMap[t.id] = t.name })
         setCricketTeams(teamMap)
-
         setMatchList(getBuildableMatches(allMatches))
         setLoadingList(false)
       })
@@ -63,16 +51,15 @@ function ViewTeam() {
   useEffect(() => {
     if (matchList.length === 0) return
     const currentMatch = matchList[currentIndex]
-    if (!currentMatch || !token) return
+    if (!currentMatch) return
 
     setLoadingSquad(true)
     setNoTeamForCurrent(false)
 
-    axiosInstance.get('/api/fantasy-teams/', { headers })
+    axiosInstance.get('/api/fantasy-teams/')
       .then(res => {
         const fantasyTeams = res.data.results || res.data
-        const existing = fantasyTeams.find(t => t.match === currentMatch.id)
-
+        const existing = fantasyTeams.find(t => (t.match?.id || t.match) === currentMatch.id)
         if (!existing) {
           setNoTeamForCurrent(true)
           setSquad([])
@@ -87,11 +74,11 @@ function ViewTeam() {
           fetchMatchPlayerPoints(currentMatch.id),
         ])
           .then(([allRows, pointsByPlayer]) => {
-            const rows = allRows.filter(r => r.fantasy_team === existing.id)
+            const rows = allRows.filter(r => (r.fantasy_team?.id || r.fantasy_team) === existing.id)
 
             return Promise.all(
               rows.map(row =>
-                axiosInstance.get(`/api/players/${row.player}/`, { headers })
+                axiosInstance.get(`/api/players/${row.player}/`)
                   .then(pRes => ({
                     ...pRes.data,
                     credit_value: Number(pRes.data.credit_value),

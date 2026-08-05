@@ -5,9 +5,14 @@ import Navbar from '../components/navbar'
 import TeamNameModal from '../components/Teamnamemodel'
 import axiosInstance from '../utilis/axiosInstance'
 import { fetchAllPages } from '../utilis/fetchAllPages'
+import { useAuth } from '../context/AuthContext'
 
 export default function Dashboard() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  // isLoggedIn/userId now come from AuthContext — the single source of
+  // truth that also drives ProtectedRoute. No more manual localStorage
+  // reads or JWT decoding here.
+  const { isLoggedIn, userId } = useAuth()
+
   const [upcomingMatch, setUpcomingMatch] = useState(null)
   const [pastMatches, setPastMatches] = useState([])
   const [topLeagues, setTopLeagues] = useState([])
@@ -31,16 +36,9 @@ export default function Dashboard() {
   const BRAND = '#38003c'
 
   useEffect(() => {
-    // NOTE: confirm this matches whatever key your login flow actually
-    // stores the access token under (GoogleLoginCompleteView sends
-    // ?access=...&refresh=... — check your regular email/password login
-    // path stores it under the same 'access' key).
-    const token = localStorage.getItem('refreshtoken')
-    setIsLoggedIn(!!token)
-
     // Public fetches — run for everyone, logged in or not
     Promise.all([
-      axiosInstance.get('/api/matches/'),
+      axiosInstance.get('/api/matches/?ordering=match_date&page_size=50'),
       axiosInstance.get('/api/cricket-teams/'),
       axiosInstance.get('/api/leagues/'),
       axiosInstance.get('/api/players/?ordering=-credit_value'),
@@ -79,12 +77,11 @@ export default function Dashboard() {
         setTopPlayers(players.slice(0, 5))
         setTopNews(news.slice(0, 3))
 
-        // After public data is loaded, run personal (token-protected)
-        // fetches so we can reliably look up match dates when
-        // computing latest/team totals.
-        if (token) {
-          // Profile fetch — checks whether the one-time team name prompt is
-          // needed, and pulls favorites for highlighting content below
+        // Personal (protected) fetches — only run once we know the user
+        // is genuinely logged in, per AuthContext. axiosInstance already
+        // attaches the in-memory access token to these automatically via
+        // its request interceptor — no manual header/token handling needed.
+        if (isLoggedIn) {
           axiosInstance.get('/api/users/me/')
             .then(res => {
               if (!res.data.team_name) {
@@ -101,7 +98,6 @@ export default function Dashboard() {
               .catch(() => ({ data: { results: [] } })),
           ])
             .then(([teams, membersRes]) => {
-              // `fetchAllPages` returns an array of teams directly
               const members = membersRes.data.results || membersRes.data || []
 
               setFantasyTeams(teams)
@@ -124,14 +120,15 @@ export default function Dashboard() {
                 setLatestPoints(sortedByMatchDate[0].total_points || 0)
               }
 
+              // userId comes from AuthContext now, decoded once centrally
+              // instead of re-decoding the token here
               const myLeagueIds = members.map(m => m.league)
-              const currentUserId = JSON.parse(atob(token.split('.')[1])).user_id
 
               axiosInstance.get('/api/leagues/')
                 .then(res => {
                   const all = res.data.results || res.data
                   const mine = all.filter(l =>
-                    myLeagueIds.includes(l.id) || l.created_by === currentUserId
+                    myLeagueIds.includes(l.id) || l.created_by === userId
                   )
                   setMyLeagues(mine)
                 })
@@ -143,14 +140,14 @@ export default function Dashboard() {
         }
       })
       .catch(err => console.error('Error loading dashboard:', err))
-  }, [])
+  }, [isLoggedIn, userId])
 
   // Derived, not stored — always reflects the *current* upcomingMatch and
   // fantasyTeams, so it can't go stale the way a separately-set boolean can.
   // If your API returns `match` as a nested object instead of a raw id,
   // change the comparison below to `t.match.id === upcomingMatch.id`.
   const hasTeamForUpcomingMatch = upcomingMatch
-    ? fantasyTeams.some(t => t.match === upcomingMatch.id)
+    ? fantasyTeams.some(t => (t.match?.id || t.match) === upcomingMatch.id)
     : false
 
   // Does the upcoming match involve the user's favorite team?
@@ -238,7 +235,7 @@ export default function Dashboard() {
                     Get Started
                   </Link>
                   <Link
-                    to="/"
+                    to="/login"
                     className="bg-white/10 text-white px-5 py-3 rounded-full font-semibold hover:bg-white/20 transition-colors"
                   >
                     Login
@@ -246,7 +243,6 @@ export default function Dashboard() {
                 </>
               ) : (
                 <>
-                
                   <Link
                     to="/build-team"
                     className="bg-yellow-400 text-slate-950 px-5 py-3 rounded-full font-semibold hover:bg-yellow-300 transition-colors"
@@ -396,7 +392,7 @@ export default function Dashboard() {
               {topLeagues.map(league => (
                 <Link
                   key={league.id}
-                  to={isLoggedIn ? `/leagues/${league.id}` : '/'}
+                  to={isLoggedIn ? `/leagues/${league.id}` : '/login'}
                   className="block bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
                 >
                   <p className="font-semibold">{league.name}</p>
@@ -491,7 +487,7 @@ export default function Dashboard() {
             </p>
             <div className="flex justify-center gap-3">
               <Link
-                to="/"
+                to="/login"
                 className="bg-slate-900 text-white px-5 py-2 rounded-lg font-semibold hover:bg-slate-800"
               >
                 Login

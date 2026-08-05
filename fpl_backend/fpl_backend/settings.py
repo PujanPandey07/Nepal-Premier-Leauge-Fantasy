@@ -32,9 +32,6 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
-    'dj_rest_auth',
-    'dj_rest_auth.registration',
-    'rest_framework.authtoken',
     'corsheaders',
     'django_filters',
 ]
@@ -124,17 +121,6 @@ ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*']
 
-REST_USE_JWT = True
-JWT_AUTH_COOKIE = 'jwt-auth'
-
-REST_AUTH = {
-    'REGISTER_SERIALIZER': 'core.serializers.CustomRegisterSerializer',
-    'USE_JWT': True,
-    'JWT_AUTH_COOKIE': 'jwt-auth',
-    'JWT_AUTH_REFRESH_COOKIE': 'jwt-refresh-auth',  # enables refresh token
-    # returns expiration times in response
-    'JWT_AUTH_RETURN_EXPIRATION': True,
-}
 
 # ── Redis / Celery ────────────────────────────────────
 REDIS_URL = os.getenv('REDIS_URL')
@@ -159,9 +145,18 @@ CACHES = {
     }
 }
 
-# ── Email ─────────────────────────────────────────────
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'arghakhanchipujan@gmail.com'
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 1
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')      # your Gmail
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')  # Gmail app password
+DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER', 'noreply@nplfantasy.com')
+
 
 # ── Swagger ───────────────────────────────────────────
 SPECTACULAR_SETTINGS = {

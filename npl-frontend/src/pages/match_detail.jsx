@@ -1,20 +1,15 @@
 // MatchDetail.jsx
 import { useEffect, useState } from 'react'
-import { useParams, Link, useLocation } from 'react-router-dom'
-import axios from 'axios'
+import { useParams, Link } from 'react-router-dom'
 import Navbar from '../components/navbar'
-import  axiosInstance  from '../utilis/axiosInstance'
+import axiosInstance from '../utilis/axiosInstance'
+import { fetchAllPages } from '../utilis/fetchAllPages'
 
 function MatchDetail() {
   const { matchId } = useParams()
-  // useLocation gives us the state passed via the Link in Matches.jsx
-  const { state } = useLocation()
-  // isBuildable defaults to false if user navigates directly via URL
-  // (not from the Matches page) — safest default
-  const isBuildable = state?.isBuildable ?? false
-
   const [match, setMatch] = useState(null)
   const [teams, setTeams] = useState({})
+  const [isBuildable, setIsBuildable] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -22,13 +17,28 @@ function MatchDetail() {
     Promise.all([
       axiosInstance.get(`/api/matches/${matchId}/`),
       axiosInstance.get('/api/cricket-teams/'),
+      fetchAllPages('/api/matches/?ordering=match_date'),
     ])
-      .then(([matchRes, teamsRes]) => {
+      .then(([matchRes, teamsRes, allMatches]) => {
         setMatch(matchRes.data)
         const list = teamsRes.data.results || teamsRes.data
         const map = {}
         list.forEach(t => { map[t.id] = t.name })
         setTeams(map)
+
+        // Calculate isBuildable independently (works from any page or direct URL)
+        const now = new Date()
+        const isOpen = (m) => now < new Date(m.match_date) - 30 * 60 * 1000
+        const openSorted = allMatches.filter(isOpen)
+        if (openSorted.length > 0) {
+          const earliestDay = new Date(openSorted[0].match_date).toDateString()
+          const buildableIds = new Set(
+            openSorted
+              .filter(m => new Date(m.match_date).toDateString() === earliestDay)
+              .map(m => String(m.id))
+          )
+          setIsBuildable(buildableIds.has(String(matchId)))
+        }
       })
       .catch(err => {
         console.error('Error loading match:', err)

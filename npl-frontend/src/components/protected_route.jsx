@@ -1,31 +1,16 @@
 // ProtectedRoute.jsx
 // Wraps any route that requires login.
-// If no token found, shows a message with a login link instead of the page.
+// Reads auth state from AuthContext (single source of truth) instead
+// of running its own separate refresh check — avoids racing against
+// AuthContext's own startup check, which would otherwise consume and
+// rotate the refresh cookie twice on first load.
 import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { tryRefresh, getAccessToken } from '../utilis/auth'
+import { useAuth } from '../context/AuthContext'
 
 export default function ProtectedRoute({ children }) {
-    const [status, setStatus] = useState('checking') // 'checking' | 'authed' | 'unauth'
+    const { isLoggedIn, checkingAuth } = useAuth()
 
-    useEffect(() => {
-        let mounted = true
-        async function check() {
-            const token = getAccessToken()
-            if (token) {
-                if (mounted) setStatus('authed')
-                return
-            }
-
-            const res = await tryRefresh()
-            if (mounted) setStatus(res && res.access ? 'authed' : 'unauth')
-        }
-
-        check()
-        return () => { mounted = false }
-    }, [])
-
-    if (status === 'checking') {
+    if (checkingAuth) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <p className="text-gray-400">Checking authentication...</p>
@@ -33,7 +18,7 @@ export default function ProtectedRoute({ children }) {
         )
     }
 
-    if (status === 'unauth') {
+    if (!isLoggedIn) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
                 <p className="text-xl font-semibold text-gray-700 mb-2">

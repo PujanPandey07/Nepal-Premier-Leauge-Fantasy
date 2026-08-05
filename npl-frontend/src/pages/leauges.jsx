@@ -1,11 +1,12 @@
 // Leagues.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
 import Navbar from "../components/navbar";
 import { Link } from "react-router-dom";
-import  axiosInstance  from '../utilis/axiosInstance'
+import axiosInstance from '../utilis/axiosInstance'
+import { useAuth } from '../context/AuthContext'
 
 function Leagues() {
+  const { isLoggedIn, userId } = useAuth()  // ← single source of truth
   const [allLeagues, setAllLeagues] = useState([])
   const [myLeagues, setMyLeagues] = useState([])
   const [members, setMembers] = useState([])
@@ -18,7 +19,6 @@ function Leagues() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [tournaments, setTournaments] = useState([])
 
-  // Create league form state
   const [form, setForm] = useState({
     name: '',
     tournament: '',
@@ -30,28 +30,20 @@ function Leagues() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState(null)
 
-  const token = localStorage.getItem('refreshtoken')
-  const isLoggedIn = !!token
-  const headers = token ? { Authorization: `Bearer ${token}` } : {}
-
-  const currentUserId = token
-    ? JSON.parse(atob(token.split('.')[1])).user_id
-    : null
   useEffect(() => {
-    // Fetch leagues and memberships in parallel
     Promise.all([
-      axiosInstance.get('/api/leagues/', { headers }),
+      axiosInstance.get('/api/leagues/'),
       isLoggedIn
-        ? axiosInstance.get('/api/league-members/', { headers }).catch(() => ({ data: { results: [] } }))
+        ? axiosInstance.get('/api/league-members/').catch(() => ({ data: { results: [] } }))
         : Promise.resolve({ data: { results: [] } }),
       isLoggedIn
-        ? axiosInstance.get('/api/tournaments/', { headers })
+        ? axiosInstance.get('/api/tournaments/')
         : Promise.resolve({ data: { results: [] } }),
       isLoggedIn
-        ? axiosInstance.get('/api/fantasy-teams/', { headers }).catch(() => ({ data: { results: [] } }))
+        ? axiosInstance.get('/api/fantasy-teams/').catch(() => ({ data: { results: [] } }))
         : Promise.resolve({ data: { results: [] } }),
       isLoggedIn
-        ? axiosInstance.get('/api/users/me/', { headers }).catch(() => ({ data: {} }))
+        ? axiosInstance.get('/api/users/me/').catch(() => ({ data: {} }))
         : Promise.resolve({ data: {} }),
     ])
       .then(([leaguesRes, membersRes, tournamentsRes, fantasyTeamsRes, meRes]) => {
@@ -71,19 +63,19 @@ function Leagues() {
         fantasyTeams.forEach(t => { teamMap[t.id] = t })
 
         const mine = leagues.filter(l =>
-          myLeagueIds.includes(l.id) || l.created_by === currentUserId
+          myLeagueIds.includes(l.id) || l.created_by === userId
         )
         setMyLeagues(mine)
         setFantasyTeamMap(teamMap)
         setUserData(me)
       })
-        .catch(error => console.error('Error fetching leagues:', error))
-        .finally(() => setLoading(false))
-      }, [])
+      .catch(error => console.error('Error fetching leagues:', error))
+      .finally(() => setLoading(false))
+  }, [isLoggedIn, userId])
 
   const goToPage = (url) => {
     if (!url) return
-    axios.get(url, { headers })
+    axiosInstance.get(url)  // ← was plain axios, now uses axiosInstance
       .then(res => {
         setAllLeagues(res.data.results || res.data)
         setNextPage(res.data.next)
@@ -104,7 +96,6 @@ function Leagues() {
     setCreating(true)
     setCreateError(null)
 
-    // Basic validation
     if (!form.name || !form.tournament || !form.max_members) {
       setCreateError('Name, tournament and max members are required.')
       setCreating(false)
@@ -121,18 +112,14 @@ function Leagues() {
           prize_pool: form.prize_pool || 0,
           max_members: parseInt(form.max_members),
           is_public: form.is_public,
-          // status defaults to 'open' on the backend
           status: 'open',
           type: form.is_public ? 'public' : 'private',
-        },
-        { headers }
+        }
       )
 
-      // Add newly created league to both lists
       setAllLeagues(prev => [res.data, ...prev])
       setMyLeagues(prev => [res.data, ...prev])
 
-      // Reset form and close modal
       setForm({
         name: '',
         tournament: '',
@@ -144,7 +131,6 @@ function Leagues() {
       setShowCreateModal(false)
     } catch (err) {
       const errData = err.response?.data
-      // Show first error message from backend
       setCreateError(
         typeof errData === 'object'
           ? Object.values(errData)[0]
@@ -154,6 +140,7 @@ function Leagues() {
       setCreating(false)
     }
   }
+
 
   const LeagueTable = ({ leagues }) => (
     <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -189,7 +176,7 @@ function Leagues() {
             </div>
             <div className="text-gray-800 font-semibold">
               {(() => {
-                const member = members.find(m => m.league === league.id && (m.user === currentUserId || league.created_by === currentUserId))
+                   const member = members.find(m => m.league === league.id && (m.user === userId || league.created_by === userId))
                 return member ? (member.points || 0) : '-'
               })()}
             </div>

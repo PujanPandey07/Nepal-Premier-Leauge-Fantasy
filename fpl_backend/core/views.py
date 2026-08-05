@@ -1,3 +1,5 @@
+from rest_framework.permissions import AllowAny
+from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -26,7 +28,7 @@ from rest_framework.decorators import action
 from .serializers import (
     PlayerSerializer, MatchSerializer, SportSerializer, LeagueSerializer, TournamentSerializer,
     FantasyTeamSerializer, FantasyTeamPlayerSerializer, UserPublicSerializer,
-    CricketTeamSerializer, PlayerMatchPerformanceSerializer, TransactionSerializer, UserRegistrationSerializer, LeagueMemberSerializer,
+    CricketTeamSerializer, PlayerMatchPerformanceSerializer, TransactionSerializer, RegisterSerializer, LeagueMemberSerializer,
     MatchScorecardSerializer, NewsSerializer
 )
 from .permissions import IsAdminOrReadOnly, IsOwnerOrAdmin, IsAuthenticated, IsLeagueOwnerOrAdmin
@@ -228,7 +230,7 @@ class LeagueView(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        league = serializer.save(created_by=self.request.user)
 
     @action(detail=False, methods=['post'], url_path='join')
     def join(self, request):
@@ -303,20 +305,49 @@ class TransactionView(viewsets.ModelViewSet):
         return Transaction.objects.filter(user=self.request.user).order_by('-created_at')
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_view(request):
+    serializer = RegisterSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        refresh = RefreshToken.for_user(user)
+        access = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        response = Response({
+            'access': access,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'name': user.name,
+            }
+        }, status=status.HTTP_201_CREATED)
+
+        response.set_cookie(
+            'jwt-refresh-auth',
+            refresh_token,
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite='Lax',
+            path='/'
+        )
+        return response
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 class LeagueMemberView(viewsets.ModelViewSet):
     serializer_class = LeagueMemberSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ['league', 'user']
-    # no PUT/PATCH — membership doesn't need editing
     http_method_names = ['get', 'post', 'delete']
 
     def get_queryset(self):
-        # Users can only see memberships for leagues they're in or created
-        return LeagueMember.objects.filter(
-            league__created_by=self.request.user
-        ) | LeagueMember.objects.filter(
+        # Any member can see ALL members of leagues they belong to
+        my_league_ids = LeagueMember.objects.filter(
             user=self.request.user
-        )
+        ).values_list('league_id', flat=True)
+        return LeagueMember.objects.filter(league_id__in=my_league_ids)
 
 
 class InitiatePaymentView(APIView):
@@ -378,36 +409,22 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
-        # Use the normal TokenObtainPair logic, then set refresh cookie
         response = super().post(request, *args, **kwargs)
-        try:
-            if response.status_code == 200 and 'refresh' in response.data:
-                refresh = response.data.get('refresh')
-                # set HttpOnly cookie for refresh token
-                response.set_cookie(
-                    'jwt-refresh-auth',
-                    refresh,
-                    httponly=True,
-                    secure=not settings.DEBUG,
-                    samesite='Lax',
-                    path='/'
-                )
-                # Ensure credentials header for CORS preflight consumers
-                try:
-                    response['Access-Control-Allow-Credentials'] = 'true'
-                except Exception:
-                    pass
-        except Exception:
-            # non-fatal — return the original response even if cookie couldn't be set
-            pass
+        if response.status_code == 200 and 'refresh' in response.data:
+            # ← pop, don't just get — removes it from the body
+            refresh = response.data.pop('refresh')
+            response.set_cookie(
+                'jwt-refresh-auth',
+                refresh,
+                httponly=True,
+                secure=not settings.DEBUG,
+                samesite='Lax',
+                path='/'
+            )
         return response
 
 
 class CookieTokenRefreshView(TokenRefreshView):
-    """Read refresh token from HttpOnly cookie (jwt-refresh-auth) if present.
-    Falls back to refresh in request body for compatibility.
-    """
-
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get(
             'jwt-refresh-auth') or request.data.get('refresh')
@@ -420,22 +437,20 @@ class CookieTokenRefreshView(TokenRefreshView):
         except Exception:
             return Response({'detail': 'Refresh token invalid or expired.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        data = serializer.validated_data
+        data = dict(serializer.validated_data)
+        new_refresh = data.pop('refresh', None)  # ← strip before responding
+
+        # body now only has {'access': ...}
         resp = Response(data, status=status.HTTP_200_OK)
-        # If rotation provided a new refresh token, persist it in cookie
-        if 'refresh' in data:
+        if new_refresh:
             resp.set_cookie(
                 'jwt-refresh-auth',
-                data['refresh'],
+                new_refresh,
                 httponly=True,
                 secure=not settings.DEBUG,
                 samesite='Lax',
                 path='/'
             )
-        try:
-            resp['Access-Control-Allow-Credentials'] = 'true'
-        except Exception:
-            pass
         return resp
 
 

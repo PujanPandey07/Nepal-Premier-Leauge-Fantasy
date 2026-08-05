@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { setAccessToken } from '../utilis/auth'
 
 function Registration() {
   const [name, setName] = useState('')
@@ -10,19 +11,24 @@ function Registration() {
   const [errors, setErrors] = useState({})
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setErrors({})
     setLoading(true)
+
     try {
-      await axios.post('http://localhost:8000/api/auth/registration/', {
+      const response = await axios.post('http://localhost:8000/api/auth/register/', {
         name,
         email,
-        password1: password,
+        password,
         password2: confirmPassword
-      })
-      setSuccess(true)
+      }, { withCredentials: true })
+
+      // Server returns access token + sets refresh cookie
+      setAccessToken(response.data.access)
+      navigate('/')
     } catch (error) {
       if (error.response && error.response.data) {
         setErrors(error.response.data)
@@ -60,6 +66,7 @@ function Registration() {
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
+              required
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {errors.name && (
@@ -73,6 +80,7 @@ function Registration() {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
+              required
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {errors.email && (
@@ -86,14 +94,12 @@ function Registration() {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
+              required
+              minLength={8}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {errors.password1 && (
-              <ul className="text-red-500 text-sm mt-1 list-disc list-inside">
-                {errors.password1.map((msg, i) => (
-                  <li key={i}>{msg}</li>
-                ))}
-              </ul>
+            {errors.password && (
+              <p className="text-red-500 text-sm mt-1">{errors.password.join(' ')}</p>
             )}
           </div>
 
@@ -103,6 +109,7 @@ function Registration() {
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
+              required
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {errors.password2 && (
@@ -128,20 +135,18 @@ function Registration() {
             <div className="border-t border-gray-300 w-full"></div>
             <span className="bg-white px-3 text-sm text-gray-500 absolute">or</span>
           </div>
-          {/* Google login button — plain <a> tag since it's a full page redirect */}
           
-          <a  href="http://localhost:8000/accounts/google/login/?next=http://localhost:8000/auth/complete/"
-            className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded px-4 py-2 hover:bg-gray-50 text-sm font-medium text-gray-700">
-          
+          <a
+            href="http://localhost:8000/accounts/google/login/?next=http://localhost:8000/auth/complete/"
+            className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded px-4 py-2 hover:bg-gray-50 text-sm font-medium text-gray-700"
+          >
             <img
               src="https://developers.google.com/identity/images/g-logo.png"
               alt="Google"
               className="w-5 h-5"
             />
             Continue with Google
-
-            </a>
-          
+          </a>
         </div>
 
         <p className="text-sm text-center text-gray-500 mt-4">

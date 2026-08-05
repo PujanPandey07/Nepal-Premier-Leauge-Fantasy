@@ -1,4 +1,3 @@
-// axiosInstance.js
 import axios from 'axios'
 import { getAccessToken, setAccessToken, tryRefresh } from './auth'
 
@@ -6,9 +5,10 @@ const BASE_URL = 'http://localhost:8000'
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
+  withCredentials: true,  // ← ADD THIS LINE
 })
 
-// REQUEST interceptor — attach in-memory access token to every outgoing request
+// REQUEST interceptor — attach in-memory access token
 axiosInstance.interceptors.request.use(
   config => {
     const token = getAccessToken()
@@ -20,7 +20,7 @@ axiosInstance.interceptors.request.use(
   error => Promise.reject(error)
 )
 
-// RESPONSE interceptor — catch 401s and try to refresh using cookie-based refresh
+// RESPONSE interceptor — catch 401s and refresh
 axiosInstance.interceptors.response.use(
   response => response,
 
@@ -37,15 +37,12 @@ axiosInstance.interceptors.response.use(
       try {
         const res = await tryRefresh()
         if (!res || !res.access) {
-          // failed refresh — force logout
           setAccessToken(null)
           window.location.href = '/login'
           return Promise.reject(error)
         }
 
-        // save new access in memory
         setAccessToken(res.access)
-
         originalRequest.headers.Authorization = `Bearer ${res.access}`
         return axiosInstance(originalRequest)
 

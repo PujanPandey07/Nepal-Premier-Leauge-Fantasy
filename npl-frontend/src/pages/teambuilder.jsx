@@ -7,8 +7,11 @@ import PlayerDetailModal from '../components/PlayerDetailModal'
 
 function TeamBuilder() {
   const { matchId } = useParams()
-  const { selectedPlayers, removePlayer, savedTeamId, loadMatch } = useContext(TeamContext)
-  const { captainId, viceCaptainId, setCaptain, setViceCaptain, saveTeam, isDeadlinePassed } = useContext(TeamContext)
+  const {
+    selectedPlayers, removePlayer, savedTeamId, loadMatch,
+    captainId, viceCaptainId, setCaptain, setViceCaptain, saveTeam,
+    isDeadlinePassed, match
+  } = useContext(TeamContext)
   const [openRole, setOpenRole] = useState(null)
   const [detailPlayerId, setDetailPlayerId] = useState(null)
 
@@ -56,7 +59,31 @@ function TeamBuilder() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <div className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
+
+      {/* MATCH INFO BANNER */}
+      {match && (
+  <div className="bg-slate-900 text-white px-6 py-4 border-b border-slate-700">
+    <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Building team for</p>
+    <div className="flex items-center justify-between flex-wrap gap-3">
+      <div>
+        <h2 className="text-xl font-bold">
+          {match.home_team_name || 'Home'} vs {match.away_team_name || 'Away'}
+        </h2>
+        <p className="text-sm text-slate-400 mt-0.5">
+          {match.venue} • {new Date(match.match_date).toLocaleString()}
+        </p>
+      </div>
+      <div>
+        <p className="text-xs text-slate-400">Match starts at</p>
+        <p className="text-sm font-semibold text-yellow-400">
+          {new Date(match.match_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      </div>
+    </div>
+  </div>
+)}
+
+      <div className="bg-slate-900 text-white px-6 py-3 flex justify-between items-center">
         <div>
           <p className="text-xs text-gray-400">Players</p>
           <p className="text-lg font-bold">{selectedPlayers.length}/11</p>

@@ -1,35 +1,55 @@
-// BuildTeamRedirect.jsx — handles the no-id case: finds the closest valid
-// match and redirects to /build-team/:matchId for it.
+// BuildTeamRedirect.jsx
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import axios from 'axios'
-import  axiosInstance  from '../utilis/axiosInstance'
+import axiosInstance from '../utilis/axiosInstance'
+import { fetchAllPages } from '../utilis/fetchAllPages'
 
 export default function BuildTeamRedirect() {
   const [targetId, setTargetId] = useState(null)
   const [notFound, setNotFound] = useState(false)
+  const [hasTeam, setHasTeam] = useState(false)
 
   useEffect(() => {
-    axiosInstance.get('/api/matches/')
-      .then(res => {
-        const allMatches = res.data.results || res.data
+    Promise.all([
+      fetchAllPages('/api/matches/?ordering=match_date'),
+      axiosInstance.get('/api/fantasy-teams/').catch(() => ({ data: { results: [] } }))
+    ])
+      .then(([allMatches, teamsRes]) => {
+        const myTeams = teamsRes.data.results || teamsRes.data || []
+        const myMatchIds = new Set(myTeams.map(t => (t.match?.id || t.match)))
+
         const now = new Date()
-        const eligible = allMatches.filter(m => {
-          const deadline = new Date(m.match_date) - 30 * 60 * 1000
-          return now < deadline
-        })
-        if (eligible.length === 0) {
+        const isOpen = (m) => now < new Date(m.match_date) - 30 * 60 * 1000
+        
+        // SAME logic as Matches.jsx: only matches on the EARLIEST open day are buildable
+        const openSorted = allMatches.filter(isOpen)
+        if (openSorted.length === 0) {
           setNotFound(true)
           return
         }
-        const closest = eligible.reduce((soonest, current) =>
-          new Date(current.match_date) < new Date(soonest.match_date) ? current : soonest
+
+        const earliestDay = new Date(openSorted[0].match_date).toDateString()
+        const buildableMatches = openSorted.filter(m => 
+          new Date(m.match_date).toDateString() === earliestDay
         )
-        setTargetId(closest.id)
+
+        // Find first buildable match where user doesn't have a team
+        const nextMatch = buildableMatches.find(m => !myMatchIds.has(m.id))
+
+        if (!nextMatch) {
+          setHasTeam(true)
+          return
+        }
+
+        setTargetId(nextMatch.id)
       })
-      .catch(error => console.error('Error finding closest match:', error))
+      .catch(error => {
+        console.error('Error finding closest match:', error)
+        setNotFound(true)
+      })
   }, [])
 
+  if (hasTeam) return <Navigate to="/view-team" replace />
   if (notFound) return <p className="p-8">No upcoming matches available right now.</p>
   if (!targetId) return <p className="p-8">Loading...</p>
   return <Navigate to={`/build-team/${targetId}`} replace />

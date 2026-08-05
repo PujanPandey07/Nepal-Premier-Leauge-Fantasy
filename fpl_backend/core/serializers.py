@@ -1,6 +1,6 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from dj_rest_auth.registration.serializers import RegisterSerializer
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 from .models import (
     Player, Match, Sport, League, Tournament,
     Fantasy_Team, Fantasy_Team_Player, LeagueMember,
@@ -8,6 +8,8 @@ from .models import (
 )
 import secrets
 from django.db.models import Sum
+
+User = get_user_model()
 
 
 class SportSerializer(serializers.ModelSerializer):
@@ -66,9 +68,6 @@ class PlayerMatchPerformanceSerializer(serializers.ModelSerializer):
 
 
 # --- Scorecard-specific serializers ---
-# Separate from PlayerMatchPerformanceSerializer above so we don't disturb
-# wherever that one's already used for plain CRUD elsewhere in the app.
-
 class ScorecardPerformanceSerializer(serializers.ModelSerializer):
     player_name = serializers.CharField(source='player.name', read_only=True)
 
@@ -120,7 +119,6 @@ class NewsSerializer(serializers.ModelSerializer):
 class UserPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        # expose team_name so frontend can show the user's fantasy team name
         fields = ['id', 'name', 'profile_picture', 'team_name']
 
 
@@ -144,6 +142,27 @@ class UserPrivateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "You can select at most 3 favorite players.")
         return value
+
+
+# --- NEW: Registration serializer for custom /api/auth/register/ endpoint ---
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=8)
+    password2 = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['email', 'name', 'password', 'password2']
+
+    def validate(self, data):
+        if data['password'] != data['password2']:
+            raise serializers.ValidationError(
+                {'password2': ['Passwords do not match.']})
+        return data
+
+    def create(self, validated_data):
+        validated_data.pop('password2')
+        user = User.objects.create_user(**validated_data)
+        return user
 
 
 class FantasyTeamSerializer(serializers.ModelSerializer):
@@ -172,7 +191,7 @@ class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
         read_only_fields = ['points_earned']
 
     def validate(self, data):
-        instance = self.instance  # None when creating a new row, the existing row when updating
+        instance = self.instance
 
         fantasy_team = data.get(
             'fantasy_team', instance.fantasy_team if instance else None)
@@ -189,7 +208,6 @@ class FantasyTeamPlayerSerializer(serializers.ModelSerializer):
 
         team_players = fantasy_team.team_players
         if instance:
-            # don't compare the row against itself
             team_players = team_players.exclude(pk=instance.pk)
 
         if team_players.filter(player__team=player.team).count() >= 7:
@@ -238,35 +256,23 @@ class LeagueSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get('request')
-        # Only the league creator can see the invite_code
         if not request or request.user != instance.created_by:
             data.pop('invite_code', None)
         return data
 
     def create(self, validated_data):
-        # Only generate invite code for private leagues
         if not validated_data.get('is_public', True):
             validated_data['invite_code'] = secrets.token_urlsafe(6)
-        # allow perform_create in the view to pass created_by via serializer.save(created_by=...)
-        created_by = None
-        # DRF passes extra kwargs to create as additional parameters; support both styles
-        # (create(validated_data, created_by=...))
-        try:
-            # look for created_by in the validated_data or context
-            created_by = validated_data.pop('created_by', None)
-        except Exception:
-            created_by = None
+        created_by = validated_data.pop('created_by', None)
 
         league = League.objects.create(
             **validated_data, created_by=created_by) if created_by else League.objects.create(**validated_data)
 
-        # add the creator as a member of their league
         try:
             from .models import LeagueMember
             if created_by:
                 member = LeagueMember.objects.create(
                     user=created_by, league=league)
-                # link creator's latest fantasy team for the same tournament, if any
                 try:
                     latest_team = Fantasy_Team.objects.filter(
                         user=created_by, tournament=league.tournament).order_by('-created_at').first()
@@ -276,7 +282,6 @@ class LeagueSerializer(serializers.ModelSerializer):
                 except Exception:
                     pass
             else:
-                # fallback: try to get request user from context
                 request = self.context.get('request')
                 if request and getattr(request, 'user', None) and request.user.is_authenticated:
                     member = LeagueMember.objects.create(
@@ -290,17 +295,28 @@ class LeagueSerializer(serializers.ModelSerializer):
                     except Exception:
                         pass
         except Exception:
-            # non-fatal: membership creation shouldn't block league creation
             pass
 
         return league
 
 
 class LeagueMemberSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    team_name = serializers.CharField(source='user.team_name', read_only=True)
+    points = serializers.SerializerMethodField()
+
     class Meta:
         model = LeagueMember
         fields = '__all__'
-        read_only_fields = ['ranking', 'points', 'joined_at']
+        read_only_fields = ['ranking', 'joined_at']
+
+    def get_points(self, obj):
+        # Sum total_points from ALL fantasy teams for this user in this league's tournament
+        total = Fantasy_Team.objects.filter(
+            user=obj.user,
+            tournament=obj.league.tournament
+        ).aggregate(total=Sum('total_points'))['total'] or 0
+        return total
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -309,39 +325,6 @@ class TransactionSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['id', 'amount', 'type',
                             'status', 'created_at', 'user']
-
-
-class UserRegistrationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['name', 'email', 'phone_no', 'password']
-        extra_kwargs = {'password': {'write_only': True},
-                        'phone_no': {'required': False}}
-
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            name=validated_data['name'],
-            email=validated_data['email'],
-            phone_no=validated_data.get('phone_no'),
-            password=validated_data['password']
-        )
-        return user
-
-
-class CustomRegisterSerializer(RegisterSerializer):
-    name = serializers.CharField(required=True)
-    username = None  # remove username field
-
-    def get_cleaned_data(self):
-        data = super().get_cleaned_data()
-        data['name'] = self.validated_data.get('name', '')
-        return data
-
-    def save(self, request):
-        user = super().save(request)
-        user.name = self.cleaned_data.get('name')
-        user.save()
-        return user
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

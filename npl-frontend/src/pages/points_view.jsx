@@ -1,37 +1,27 @@
 // ViewPoints.jsx
 import { useState, useEffect } from 'react'
-import axios from 'axios'
 import { ROLE_LIMITS } from '../context/teamcontext'
-import  axiosInstance  from '../utilis/axiosInstance'
+import axiosInstance from '../utilis/axiosInstance'
 import { fetchAllPages } from '../utilis/fetchAllPages'
 import { fetchMatchPlayerPoints } from '../utilis/fetchMatchPlayerPoints'
 import Navbar from '../components/navbar'
 
 export default function ViewPoints() {
-  const [teamList, setTeamList] = useState([])   // [{ fantasyTeamId, matchId, label, totalPoints, matchDate }], sorted latest-first
+  const [teamList, setTeamList] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [squad, setSquad] = useState([])          // 11 players for the CURRENTLY selected team
+  const [squad, setSquad] = useState([])
   const [loadingList, setLoadingList] = useState(true)
   const [loadingSquad, setLoadingSquad] = useState(false)
   const [error, setError] = useState(null)
 
-  // ---- Layer 1: the lightweight list of all past teams ----
+  // Layer 1: lightweight list of all past teams
   useEffect(() => {
-    const token = localStorage.getItem('refreshtoken')
-    if (!token) {
-      setError('You must be logged in to view points')
-      setLoadingList(false)
-      return
-    }
-    const headers = { Authorization: `Bearer ${token}` }
-
     Promise.all([
       fetchAllPages('/api/fantasy-teams/?page_size=20'),
       fetchAllPages('/api/matches/?page_size=20'),
       fetchAllPages('/api/cricket-teams/?page_size=20'),
     ])
       .then(([fantasyTeams, matches, cricketTeams]) => {
-
         const teamName = (id) => {
           const t = cricketTeams.find(ct => ct.id === id)
           return t ? t.name : 'Unknown'
@@ -51,7 +41,6 @@ export default function ViewPoints() {
         }).filter(Boolean)
 
         combined.sort((a, b) => new Date(b.matchDate) - new Date(a.matchDate))
-
         setTeamList(combined)
       })
       .catch(error => {
@@ -61,15 +50,12 @@ export default function ViewPoints() {
       .finally(() => setLoadingList(false))
   }, [])
 
-  // ---- Layer 2: fetch the 11-player squad for whichever team is currently selected ----
-  // Runs once teamList is loaded, AND again every time currentIndex changes.
+  // Layer 2: fetch the 11-player squad for the currently selected team
   useEffect(() => {
     if (teamList.length === 0) return
     const currentTeam = teamList[currentIndex]
     if (!currentTeam) return
 
-    const token = localStorage.getItem('token')
-    const headers = { Authorization: `Bearer ${token}` }
     setLoadingSquad(true)
 
     Promise.all([
@@ -77,11 +63,12 @@ export default function ViewPoints() {
       fetchMatchPlayerPoints(currentTeam.matchId),
     ])
       .then(([allRows, pointsByPlayer]) => {
-        const rows = allRows.filter(r => r.fantasy_team === currentTeam.fantasyTeamId)
+       const rows = allRows.filter(r => (r.fantasy_team?.id || r.fantasy_team) === currentTeam.fantasyTeamId)
 
         return Promise.all(
           rows.map(row =>
-            axiosInstance.get(`/api/players/${row.player}/`, { headers })
+            // axiosInstance already attaches the Bearer token via interceptor
+            axiosInstance.get(`/api/players/${row.player}/`)
               .then(pRes => ({
                 ...pRes.data,
                 _isCaptain: row.is_captain,

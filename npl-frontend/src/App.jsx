@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/login";
 import Dashboard from "./pages/dashboard";
 import Players from "./pages/players";
@@ -26,9 +27,6 @@ import Settings from './pages/settings'
 import Rules from "./pages/rules";
 
 
-
-
-// Only build-team routes need TeamProvider now
 function TeamLayout() {
   return (
     <TeamProvider>
@@ -41,50 +39,65 @@ function TeamLayout() {
   )
 }
 
+// Waits for the initial silent-refresh check before rendering any routes,
+// so ProtectedRoute / isLoggedIn checks never see a false "logged out"
+// flash while that check is still in flight.
+function AppRoutes() {
+  const { checkingAuth } = useAuth()
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-400">Loading...</p>
+      </div>
+    )
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Registration />} />
+      <Route path="/matches" element={<Matches />} />
+      <Route path="/matches/:matchId" element={<MatchDetail />} />
+      <Route path="/matches/:matchId/scorecard" element={<MatchScorecard />} />
+      <Route path="/leagues" element={<Leagues />} />
+      <Route path="/leagues/:leagueId" element={<LeagueDetails />} />
+      <Route path="/players" element={<Players />} />
+      <Route path="/players/:id" element={<PlayersDetail />} />
+      <Route path="/cricket-teams" element={<CricketTeams />} />
+      <Route path="/cricket-teams/:teamId" element={<CricketTeamDetail />} />
+      <Route path="/news" element={<NewsPage />} />
+      <Route path="/news/:newsId" element={<NewsDetail />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/mock-payment" element={<MockPayment />} />
+      <Route path="/rules" element={<Rules />} />
+
+      <Route path="/view-team" element={
+        <ProtectedRoute><ViewTeam /></ProtectedRoute>
+      } />
+      <Route path="/view-points" element={
+        <ProtectedRoute><ViewPoints /></ProtectedRoute>
+      } />
+      <Route path="/settings" element={
+        <ProtectedRoute><Settings /></ProtectedRoute>
+      } />
+      <Route path="/wallet" element={
+        <ProtectedRoute><Wallet /></ProtectedRoute>
+      } />
+      <Route path="/*" element={
+        <ProtectedRoute><TeamLayout /></ProtectedRoute>
+      } />
+    </Routes>
+  )
+}
+
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Public routes — no login needed */}
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Registration />} />
-        <Route path="/matches" element={<Matches />} />
-        <Route path="/matches/:matchId" element={<MatchDetail />} />
-        <Route path="/matches/:matchId/scorecard" element={<MatchScorecard />} />
-        <Route path="/leagues" element={<Leagues />} />
-        <Route path="/leagues/:leagueId" element={<LeagueDetails />} />
-        <Route path="/players" element={<Players />} />
-        <Route path="/players/:id" element={<PlayersDetail />} />
-        <Route path="/cricket-teams" element={<CricketTeams />} />
-        <Route path="/cricket-teams/:teamId" element={<CricketTeamDetail />} />
-        <Route path="/news" element={<NewsPage />} />
-        <Route path="/news/:newsId" element={<NewsDetail />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/mock-payment" element={<MockPayment />} />
-        <Route path="/rules" element={<Rules />} />
-
-        {/* Protected routes — login required */}
-        <Route path="/view-team" element={
-          <ProtectedRoute><ViewTeam /></ProtectedRoute>
-        } />
-        <Route path="/view-points" element={
-          <ProtectedRoute><ViewPoints /></ProtectedRoute>
-        } />
-
-        <Route path="/settings" element={
-          <ProtectedRoute><Settings /></ProtectedRoute>
-        } />
-        
-       <Route path="/wallet" element={
-       <ProtectedRoute><Wallet /></ProtectedRoute>
-       } />
-
-        {/* build-team/* is protected + needs TeamProvider */}
-        <Route path="/*" element={
-          <ProtectedRoute><TeamLayout /></ProtectedRoute>
-        } />
-      </Routes>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </Router>
   )
 }

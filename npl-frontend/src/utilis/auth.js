@@ -1,10 +1,25 @@
 // auth.js — in-memory access token and cookie-based refresh helpers
+import axiosInstance from './axiosInstance'  // ← ADD THIS IMPORT
+
 const BASE_URL = 'http://localhost:8000'
 
 let accessToken = null
+let listeners = []
+
+function notifyListeners() {
+  listeners.forEach(listener => listener(accessToken))
+}
+
+export function subscribe(listener) {
+  listeners.push(listener)
+  return () => {
+    listeners = listeners.filter(l => l !== listener)
+  }
+}
 
 export function setAccessToken(token) {
   accessToken = token
+  notifyListeners()
 }
 
 export function getAccessToken() {
@@ -13,6 +28,7 @@ export function getAccessToken() {
 
 export function removeAccessToken() {
   accessToken = null
+  notifyListeners()
 }
 
 export async function tryRefresh() {
@@ -20,9 +36,7 @@ export async function tryRefresh() {
     const res = await fetch(`${BASE_URL}/api/token/refresh/`, {
       method: 'POST',
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
     })
 
     if (!res.ok) {
@@ -41,21 +55,21 @@ export async function tryRefresh() {
   }
 }
 
+export async function logout() {
+  try {
+    // axiosInstance automatically attaches the Bearer token
+    await axiosInstance.post('/api/auth/logout/')
+  } catch (err) {
+    // ignore network errors — still clear local state
+  }
+  removeAccessToken()
+}
+
 export default {
   setAccessToken,
   getAccessToken,
   removeAccessToken,
   tryRefresh,
-  logout: async function() {
-    try {
-      await fetch('http://localhost:8000/api/auth/logout/', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
-      })
-    } catch (err) {
-      // ignore network errors — still clear local state
-    }
-    removeAccessToken()
-  }
+  logout,
+  subscribe,
 }

@@ -1,7 +1,6 @@
 // TeamContext.jsx
 import { createContext, useState, useEffect } from 'react'
-import axios from 'axios'
-import  axiosInstance  from '../utilis/axiosInstance'
+import axiosInstance from '../utilis/axiosInstance'
 
 export const TeamContext = createContext()
 export const ROLE_LIMITS = {
@@ -30,50 +29,35 @@ export function TeamProvider({ children }) {
       .catch(error => console.error('Error fetching tournaments:', error))
   }, [])
 
-  // Called by TeamBuilder when it mounts or its matchId changes.
-  // TeamContext no longer reads the URL itself — TeamBuilder reads
-  // useParams() and passes the id here.
   const loadMatch = (matchId) => {
     if (!matchId) return
-    // If this match is already loaded, don't re-fetch — that would
-    // trigger the [match] effect and wipe selectedPlayers unnecessarily
-    // (which happens when navigating back from the players page)
     if (match && match.id === matchId) return
     axiosInstance.get(`/api/matches/${matchId}/`)
       .then(res => setMatch(res.data))
       .catch(error => console.error('Error fetching match:', error))
   }
 
-  // Whenever match changes: reset all squad state, then check if a
-  // saved team already exists for this match and load it if so.
   useEffect(() => {
     if (!match) return
 
-    // Reset everything first — switching matches should never carry
-    // over the previous match's selection.
     setSelectedPlayers([])
     setCaptainId(null)
     setViceCaptainId(null)
     setSavedTeamId(null)
     setTeamPlayerRowIds({})
 
-    const token = localStorage.getItem('refreshtoken')
-    if (!token) return
-
-    const headers = { Authorization: `Bearer ${token}` }
-
-    axiosInstance.get('/api/fantasy-teams/', { headers })
+    axiosInstance.get('/api/fantasy-teams/')
       .then(res => {
         const teams = res.data.results || res.data
-        const existing = teams.find(t => t.match === match.id)
+        const existing = teams.find(t => (t.match?.id || t.match) === match.id)
         if (!existing) return
 
         setSavedTeamId(existing.id)
 
-        return axiosInstance.get('/api/fantasy-team-players/', { headers })
+        return axiosInstance.get('/api/fantasy-team-players/')
           .then(res2 => {
             const allRows = res2.data.results || res2.data
-            const rows = allRows.filter(r => r.fantasy_team === existing.id)
+            const rows = allRows.filter(r => (r.fantasy_team?.id || r.fantasy_team) === existing.id)
 
             return Promise.all(
               rows.map(row =>
@@ -125,13 +109,10 @@ export function TeamProvider({ children }) {
     }
 
     if (savedTeamId) {
-      const token = localStorage.getItem('refreshtoken')
-      const headers = { Authorization: `Bearer ${token}` }
       try {
         const res = await axiosInstance.post(
           '/api/fantasy-team-players/',
-          { fantasy_team: savedTeamId, player: player.id, is_captain: false, is_vice_captain: false },
-          { headers }
+          { fantasy_team: savedTeamId, player: player.id, is_captain: false, is_vice_captain: false }
         )
         setTeamPlayerRowIds(prev => ({ ...prev, [player.id]: res.data.id }))
       } catch (error) {
@@ -146,12 +127,9 @@ export function TeamProvider({ children }) {
 
   const removePlayer = async (playerId) => {
     if (savedTeamId && teamPlayerRowIds[playerId]) {
-      const token = localStorage.getItem('token')
-      const headers = { Authorization: `Bearer ${token}` }
       try {
         await axiosInstance.delete(
-          `/api/fantasy-team-players/${teamPlayerRowIds[playerId]}/`,
-          { headers }
+          `/api/fantasy-team-players/${teamPlayerRowIds[playerId]}/`
         )
       } catch (error) {
         return { success: false, error: 'Failed to remove player' }
@@ -173,18 +151,16 @@ export function TeamProvider({ children }) {
       return { success: false, error: 'A player cannot be both captain and vice-captain' }
     }
     if (savedTeamId && teamPlayerRowIds[playerId]) {
-      const token = localStorage.getItem('refreshtoken')
-      const headers = { Authorization: `Bearer ${token}` }
       try {
         if (captainId && teamPlayerRowIds[captainId]) {
           await axiosInstance.patch(
             `/api/fantasy-team-players/${teamPlayerRowIds[captainId]}/`,
-            { is_captain: false }, { headers }
+            { is_captain: false }
           )
         }
         await axiosInstance.patch(
           `/api/fantasy-team-players/${teamPlayerRowIds[playerId]}/`,
-          { is_captain: true }, { headers }
+          { is_captain: true }
         )
       } catch (error) {
         return { success: false, error: 'Failed to update captain' }
@@ -199,18 +175,16 @@ export function TeamProvider({ children }) {
       return { success: false, error: 'A player cannot be both captain and vice-captain' }
     }
     if (savedTeamId && teamPlayerRowIds[playerId]) {
-      const token = localStorage.getItem('refreshtoken')
-      const headers = { Authorization: `Bearer ${token}` }
       try {
         if (viceCaptainId && teamPlayerRowIds[viceCaptainId]) {
           await axiosInstance.patch(
             `/api/fantasy-team-players/${teamPlayerRowIds[viceCaptainId]}/`,
-            { is_vice_captain: false }, { headers }
+            { is_vice_captain: false }
           )
         }
         await axiosInstance.patch(
           `/api/fantasy-team-players/${teamPlayerRowIds[playerId]}/`,
-          { is_vice_captain: true }, { headers }
+          { is_vice_captain: true }
         )
       } catch (error) {
         return { success: false, error: 'Failed to update vice-captain' }
@@ -221,16 +195,11 @@ export function TeamProvider({ children }) {
   }
 
   const saveTeam = async () => {
-    const token = localStorage.getItem('refreshtoken')
-    if (!token) return { success: false, error: 'You must be logged in to save a team' }
     if (!match) return { success: false, error: 'Match data not loaded yet' }
     if (selectedPlayers.length < 11) return { success: false, error: 'Team is not complete yet' }
 
-    const headers = { Authorization: `Bearer ${token}` }
     try {
-      // Team name now lives on the user's profile (set once via Settings),
-      // not entered per team — pull it here instead of taking it as an argument.
-      const profileRes = await axiosInstance.get('/api/users/me/', { headers })
+      const profileRes = await axiosInstance.get('/api/users/me/')
       const teamName = profileRes.data.team_name
       if (!teamName) {
         return { success: false, error: 'Please set your team name in Settings first' }
@@ -238,8 +207,7 @@ export function TeamProvider({ children }) {
 
       const teamRes = await axiosInstance.post(
         '/api/fantasy-teams/',
-        { tournament: tournament.id, match: match.id, name: teamName, deadline: match.match_date },
-        { headers }
+        { tournament: tournament.id, match: match.id, name: teamName, deadline: match.match_date }
       )
       const fantasyTeamId = teamRes.data.id
       setSavedTeamId(fantasyTeamId)
@@ -253,8 +221,7 @@ export function TeamProvider({ children }) {
             player: player.id,
             is_captain: player.id === captainId,
             is_vice_captain: player.id === viceCaptainId,
-          },
-          { headers }
+          }
         )
         rowIdMap[player.id] = playerRowRes.data.id
       }
