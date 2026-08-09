@@ -113,6 +113,16 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+
+    # ── Throttling ─────────────────────────────────────
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',      # Unauthenticated users
+        'user': '1000/day',     # Logged-in users
+    }
 }
 
 # ── allauth ──────────────────────────────────────────
@@ -167,6 +177,7 @@ SPECTACULAR_SETTINGS = {
     'POSTPROCESSING_HOOKS': [],
 }
 
+
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://localhost',
@@ -174,6 +185,8 @@ CORS_ALLOWED_ORIGINS = [
 
 # Allow cookies (HttpOnly refresh token) to be sent cross-origin from the frontend
 CORS_ALLOW_CREDENTIALS = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = False  # True only in production with HTTPS
 
 # ── Test overrides ────────────────────────────────────
 if 'test' in sys.argv:
@@ -205,7 +218,6 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
-LOGIN_REDIRECT_URL = "/"
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http'
 LOGIN_REDIRECT_URL = '/auth/complete/'
 SOCIALACCOUNT_LOGIN_ON_GET = True

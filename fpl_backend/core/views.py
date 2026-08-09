@@ -1,8 +1,10 @@
+from django.utils.decorators import method_decorator
+from django.contrib.auth.decorators import login_required
 from allauth.account.models import EmailConfirmation, EmailConfirmationHMAC
 from rest_framework.permissions import AllowAny
 from allauth.account.models import EmailAddress
 from allauth.account.utils import setup_user_email
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -13,7 +15,7 @@ from .serializers import CustomTokenObtainPairSerializer
 from .permissions import IsAdminOrReadOnly, IsAuthenticated
 from decimal import Decimal
 from django.core.cache import cache
-
+from django.views import View
 from django.db.models import Sum, Count, F
 from rest_framework.views import APIView
 from rest_framework import viewsets
@@ -42,6 +44,7 @@ from .pagination import StandardPagination
 from .caching import CacheInvalidateMixin
 from .tasks import send_welcome_email, send_match_reminder
 from django.http import HttpResponse
+from .throttle import AuthRateThrottle
 
 User = get_user_model()
 
@@ -296,6 +299,7 @@ class TransactionView(viewsets.ModelViewSet):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([AuthRateThrottle])
 def register_view(request):
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
@@ -309,12 +313,7 @@ def register_view(request):
         email_address = EmailAddress.objects.get_for_user(user, user.email)
         email_address.send_confirmation(request)
 
-        refresh = RefreshToken.for_user(user)
-        access = str(refresh.access_token)
-        refresh_token = str(refresh)
-
-        response = Response({
-            'access': access,
+        return Response({
             'user': {
                 'id': user.id,
                 'email': user.email,
@@ -324,15 +323,6 @@ def register_view(request):
             'detail': 'Registration successful. Please check your email to verify your account.'
         }, status=status.HTTP_201_CREATED)
 
-        response.set_cookie(
-            'jwt-refresh-auth',
-            refresh_token,
-            httponly=True,
-            secure=not settings.DEBUG,
-            samesite='Lax',
-            path='/'
-        )
-        return response
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -404,6 +394,7 @@ class VerifyPaymentView(APIView):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_classes = [AuthRateThrottle]
 
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
@@ -433,11 +424,25 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class CookieTokenRefreshView(TokenRefreshView):
+    throttle_classes = [AuthRateThrottle]
+
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get(
             'jwt-refresh-auth') or request.data.get('refresh')
         if not refresh_token:
             return Response({'detail': 'Refresh token not provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check user verification BEFORE rotating (so we don't blacklist a valid token for no reason)
+        try:
+            from rest_framework_simplejwt.tokens import RefreshToken as RT
+            unverified_token = RT(refresh_token)
+            user_id = unverified_token.payload.get('user_id')
+            User = get_user_model()
+            user = User.objects.get(id=user_id)
+            if not user.is_verified:
+                return Response({'detail': 'Please verify your email first.'}, status=status.HTTP_403_FORBIDDEN)
+        except Exception:
+            pass  # Invalid/expired token — let serializer handle it below
 
         serializer = self.get_serializer(data={'refresh': refresh_token})
         try:
@@ -463,6 +468,7 @@ class CookieTokenRefreshView(TokenRefreshView):
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AuthRateThrottle]
 
     def post(self, request):
         refresh_token = request.COOKIES.get(
@@ -483,14 +489,16 @@ class LogoutView(APIView):
         return resp
 
 
-class GoogleLoginCompleteView(APIView):
-    permission_classes = []
-
+@method_decorator(login_required, name='dispatch')
+class GoogleLoginCompleteView(View):
     def get(self, request):
-        if not request.user.is_authenticated:
-            return redirect('http://localhost/login?error=auth_failed')
-
         user = request.user
+
+        # CRITICAL FIX: Google users are always verified
+        if not user.is_verified:
+            user.is_verified = True
+            user.save(update_fields=['is_verified'])
+
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
@@ -536,6 +544,13 @@ def verify_email_view(request, key):
         if not confirmation:
             confirmation = EmailConfirmation.objects.get(key=key)
         confirmation.confirm(request)
+
+        # CRITICAL: allauth marks EmailAddress.verified, but your User.is_verified stays False
+        user = confirmation.email_address.user
+        if not user.is_verified:
+            user.is_verified = True
+            user.save(update_fields=['is_verified'])
+
         return redirect('http://localhost/login?verified=success')
     except Exception:
         return redirect('http://localhost/login?verified=failed')

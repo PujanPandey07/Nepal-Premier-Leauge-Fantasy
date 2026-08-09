@@ -33,6 +33,10 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
                 existing_user = User.objects.get(email=user.email)
                 if not sociallogin.is_existing:
                     sociallogin.connect(request, existing_user)
+                # FIX: Ensure existing users are verified when using Google
+                if not existing_user.is_verified:
+                    existing_user.is_verified = True
+                    existing_user.save(update_fields=['is_verified'])
             except User.DoesNotExist:
                 pass
 
