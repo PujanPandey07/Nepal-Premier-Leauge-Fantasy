@@ -15,7 +15,7 @@ function CricketTeamDetail() {
     useEffect(() => {
         Promise.all([
             axiosInstance.get(`/api/cricket-teams/${teamId}/`),
-            axiosInstance.get(`/api/players/?team=${teamId}`),
+            axiosInstance.get(`/api/players/?team=${teamId}&page_size=50`)  // Fetch all players for the team,
         ])
             .then(([teamRes, playersRes]) => {
                 setTeam(teamRes.data)

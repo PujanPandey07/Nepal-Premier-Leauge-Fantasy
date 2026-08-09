@@ -554,3 +554,9 @@ def verify_email_view(request, key):
         return redirect('http://localhost/login?verified=success')
     except Exception:
         return redirect('http://localhost/login?verified=failed')
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    return Response({'status': 'ok', 'service': 'django'})

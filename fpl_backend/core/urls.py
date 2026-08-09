@@ -1,8 +1,12 @@
 from django.urls import include, path
 from rest_framework import routers
 from .views import (
-    InitiatePaymentView, MatchPerformanceView, MeView, NewsView, SportsView, VerifyPaymentView, TournamentView, CricketTeamView, PlayerView, MatchView, FantasyTeamView, FantasyTeamPlayerView, TransactionView, LeagueView, LeagueMemberView, LogoutView, register_view, verify_email_view
+    InitiatePaymentView, MatchPerformanceView, MeView, NewsView,
+    SportsView, VerifyPaymentView, TournamentView, CricketTeamView,
+    PlayerView, MatchView, FantasyTeamView, FantasyTeamPlayerView,
+    TransactionView, LeagueView, LeagueMemberView, register_view
 )
+
 router = routers.DefaultRouter()
 router.register(r'sports', SportsView, basename='sports')
 router.register(r'tournaments', TournamentView, basename='tournaments')
@@ -20,15 +24,11 @@ router.register(r'league-members', LeagueMemberView, basename='league-members')
 router.register(r'news', NewsView, basename='news')
 
 urlpatterns = [
-    path('', include(router.urls)),  # all viewset routes
+    path('', include(router.urls)),
 
-    # manual routes for custom views
+    # App-level API routes (these become /api/... because core.urls is included under api/)
     path('payments/initiate/', InitiatePaymentView.as_view()),
     path('payments/verify/', VerifyPaymentView.as_view()),
-
     path('users/me/', MeView.as_view(), name='me'),
-    path('auth/logout/', LogoutView.as_view()),
     path('auth/register/', register_view, name='register'),
-    path('api/auth/verify-email/<str:key>/',
-         verify_email_view, name='verify_email'),
 ]
