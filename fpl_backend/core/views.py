@@ -357,7 +357,7 @@ class InitiatePaymentView(APIView):
             payment_method='khalti'
         )
 
-        return_url = 'http://localhost:8000/api/payments/verify/'
+        return_url = f'{settings.BACKEND_URL}/api/payments/verify/'
         response = initiate_payment(
             amount, transaction.id, request.user, return_url)
 
@@ -373,7 +373,7 @@ class VerifyPaymentView(APIView):
     def get(self, request):
         pidx = request.query_params.get('pidx')
         if not pidx:
-            return redirect('http://localhost/wallet?status=failed')
+            return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed')
 
         response = verify_payment(pidx)
         transaction = get_object_or_404(Transaction, reference_id=pidx)
@@ -385,11 +385,11 @@ class VerifyPaymentView(APIView):
             User.objects.filter(pk=transaction.user.pk).update(
                 wallet_balance=F('wallet_balance') + transaction.amount
             )
-            return redirect('http://localhost/wallet?status=success')
+            return redirect(f'{settings.FRONTEND_URL}/wallet?status=success')
         else:
             transaction.status = 'failed'
             transaction.save()
-            return redirect('http://localhost/wallet?status=failed')
+            return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed')
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -494,7 +494,6 @@ class GoogleLoginCompleteView(View):
     def get(self, request):
         user = request.user
 
-        # CRITICAL FIX: Google users are always verified
         if not user.is_verified:
             user.is_verified = True
             user.save(update_fields=['is_verified'])
@@ -503,7 +502,7 @@ class GoogleLoginCompleteView(View):
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
-        resp = redirect('http://localhost/auth/callback')
+        resp = redirect(f'{settings.FRONTEND_URL}/auth/callback')
         resp.set_cookie(
             'jwt-refresh-auth',
             refresh_token,
@@ -545,15 +544,14 @@ def verify_email_view(request, key):
             confirmation = EmailConfirmation.objects.get(key=key)
         confirmation.confirm(request)
 
-        # CRITICAL: allauth marks EmailAddress.verified, but your User.is_verified stays False
         user = confirmation.email_address.user
         if not user.is_verified:
             user.is_verified = True
             user.save(update_fields=['is_verified'])
 
-        return redirect('http://localhost/login?verified=success')
+        return redirect(f'{settings.FRONTEND_URL}/login?verified=success')
     except Exception:
-        return redirect('http://localhost/login?verified=failed')
+        return redirect(f'{settings.FRONTEND_URL}/login?verified=failed')
 
 
 @api_view(['GET'])

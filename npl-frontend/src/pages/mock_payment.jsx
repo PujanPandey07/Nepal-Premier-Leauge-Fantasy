@@ -16,7 +16,7 @@ export default function MockPayment() {
     setPaying(true)
     // Just redirect the browser to the verify URL —
     // the backend will process it and redirect to wallet?status=success
-    window.location.href = `http://localhost:8000/api/payments/verify/?pidx=${pidx}&status=Completed`
+    window.location.href = `${API_BASE}/api/payments/verify/?pidx=${pidx}&status=Completed`
 }
 
     const handleCancel = () => {

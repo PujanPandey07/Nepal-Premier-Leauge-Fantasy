@@ -1,7 +1,7 @@
 // auth.js — in-memory access token and cookie-based refresh helpers
 import axiosInstance from './axiosInstance'  // ← ADD THIS IMPORT
 
-const BASE_URL = 'http://localhost:8000'
+const BASE_URL = ''
 
 let accessToken = null
 let listeners = []

@@ -11,14 +11,20 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         user = super().populate_user(request, sociallogin, data)
 
         extra_data = sociallogin.account.extra_data
-        if not getattr(user, 'email', None):
-            user.email = extra_data.get('email', '') or data.get('email', '')
-        if not getattr(user, 'name', None):
-            user.name = extra_data.get('name', '') or data.get('name', '')
 
+        # Set email from Google if not already set
+        if not user.email:
+            user.email = extra_data.get('email', '') or data.get('email', '')
+
+        # Set name from Google
+        if not user.name:
+            user.name = extra_data.get('name', '') or extra_data.get(
+                'given_name', '') or data.get('name', '')
+
+        # Set a random password (user won't use it, they login via Google)
         user.password = make_password(uuid.uuid4().hex)
 
-        # Google already verified this email — mark as verified
+        # Google already verified this email
         user.is_verified = True
 
         return user
@@ -27,31 +33,41 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         return True
 
     def pre_social_login(self, request, sociallogin):
-        user = sociallogin.user
-        if user.email:
-            try:
-                existing_user = User.objects.get(email=user.email)
-                if not sociallogin.is_existing:
-                    sociallogin.connect(request, existing_user)
-                # FIX: Ensure existing users are verified when using Google
-                if not existing_user.is_verified:
-                    existing_user.is_verified = True
-                    existing_user.save(update_fields=['is_verified'])
-            except User.DoesNotExist:
-                pass
+        # Call super first for default behavior
+        super().pre_social_login(request, sociallogin)
+
+        # If already connected, nothing to do
+        if sociallogin.is_existing:
+            return
+
+        # Try to connect to existing user with same email
+        email = sociallogin.user.email
+        if not email:
+            return
+
+        try:
+            existing_user = User.objects.get(email=email)
+            # Connect this Google account to the existing user
+            sociallogin.connect(request, existing_user)
+            # Ensure existing user is verified
+            if not existing_user.is_verified:
+                existing_user.is_verified = True
+                existing_user.save(update_fields=['is_verified'])
+        except User.DoesNotExist:
+            # No existing user — allauth will create a new one
+            pass
+        except Exception as e:
+            # If connection fails for any reason, log it but don't crash
+            print(f"Social login connection failed: {e}")
+            pass
 
     def save_user(self, request, sociallogin, form=None):
-        user = sociallogin.user
-        if user.email:
-            try:
-                existing = User.objects.get(email=user.email)
-                if not sociallogin.is_existing:
-                    sociallogin.connect(request, existing)
-                # Ensure existing users are also marked verified
-                if not existing.is_verified:
-                    existing.is_verified = True
-                    existing.save(update_fields=['is_verified'])
-                return existing
-            except User.DoesNotExist:
-                pass
-        return super().save_user(request, sociallogin, form)
+        # Just use default allauth behavior — populate_user already set the fields
+        user = super().save_user(request, sociallogin, form)
+
+        # Double-check verification
+        if not user.is_verified:
+            user.is_verified = True
+            user.save(update_fields=['is_verified'])
+
+        return user

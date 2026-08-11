@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -8,6 +10,11 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   django:
     build:
@@ -15,9 +22,12 @@ services:
     container_name: django
     env_file:
       - .env
+    volumes:
+      - media_volume:/app/media
     depends_on:
-      - postgres
-    # no host port mapping — django will be served behind the nginx proxy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
   celery:
     build:
@@ -28,36 +38,37 @@ services:
     command: celery -A fpl_backend worker -l info
     depends_on:
       - postgres
+    restart: unless-stopped
+
   celery-beat:
     build:
       context: ./fpl_backend
-    volumes:
-      - ./fpl_backend:/app
     container_name: celery-beat
     env_file:
       - .env
     command: celery -A fpl_backend beat -l info
     depends_on:
       - postgres
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./npl-frontend
     container_name: frontend
-    depends_on:
-      - django
     ports:
       - "80:80"
-
-  nginx:
-    image: nginx:1.25-alpine
-    container_name: nginx
+      - "443:443"
     volumes:
-      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./npl-frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - media_volume:/var/www/media:ro
+      - certbot_conf:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
     depends_on:
       - django
-    ports:
-      - "8000:80"
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  media_volume:
+  certbot_conf:
+  certbot_www:

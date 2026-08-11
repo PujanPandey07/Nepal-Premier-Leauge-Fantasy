@@ -2,31 +2,50 @@ name: CI
 
 on:
   push:
-    branches: [Master]
+    branches: [Master, main]
   pull_request:
-    branches: [Master]
+    branches: [Master, main]
 
 jobs:
-  django-build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build django-image
-        run: docker build -t npl-django ./fpl_backend
-  build-frontend:
+  lint-and-validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build frontend image
-        run: docker build -t npl-frontend ./npl-frontend
+      - name: Check for hardcoded localhost URLs in frontend
+        run: |
+          if grep -r "localhost:8000" npl-frontend/src/; then
+            echo "❌ Found hardcoded localhost:8000 in frontend. Use relative URLs or import.meta.env.VITE_API_URL"
+            exit 1
+          fi
+          echo "✅ No hardcoded localhost URLs found"
+
+      - name: Validate docker-compose syntax
+        run: docker compose config
+
+      - name: Validate nginx config
+        run: |
+          docker run --rm -v "$PWD/npl-frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.27-alpine nginx -t
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build all services with docker compose
+        run: docker compose build
+
+      - name: Verify frontend builds with production env
+        run: |
+          # Ensure .env.production exists
+          test -f npl-frontend/.env.production || (echo "❌ Missing .env.production" && exit 1)
+          docker build -t npl-frontend ./npl-frontend
 
   test-django:
     runs-on: ubuntu-latest
+    needs: build
 
     services:
       postgres:
@@ -71,5 +90,55 @@ jobs:
             -e DB_PASSWORD=test_password \
             -e SECRET_KEY=ci-test-secret-key \
             -e REDIS_URL=redis://localhost:6379/0 \
+            -e DEBUG=True \
+            -e ALLOWED_HOSTS=localhost,127.0.0.1 \
+            -e CORS_ALLOWED_ORIGINS=http://localhost,http://localhost:5173 \
             npl-django \
             python manage.py test
+
+  test-integration:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start services
+        run: |
+          # Create a test .env
+          cat > .env << 'EOF'
+          DEBUG=True
+          SECRET_KEY=ci-test-secret-key
+          DB_NAME=test_db
+          DB_HOST=postgres
+          DB_USER=test_user
+          DB_PASSWORD=test_password
+          DB_PORT=5432
+          REDIS_URL=redis://redis:6379/0
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          CORS_ALLOWED_ORIGINS=http://localhost,http://localhost:5173
+          EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+          EOF
+
+          docker compose up -d
+          sleep 10
+
+      - name: Check health endpoints
+        run: |
+          curl -f http://localhost:8000/health/ || exit 1
+          curl -f http://localhost/ || exit 1
+
+      - name: Run migrations
+        run: docker compose exec -T django python manage.py migrate
+
+      - name: Create superuser
+        run: |
+          docker compose exec -T django python manage.py shell << 'EOF'
+          from django.contrib.auth import get_user_model
+          User = get_user_model()
+          User.objects.create_superuser('admin@nplfantasy.com', 'adminpass')
+          EOF
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v

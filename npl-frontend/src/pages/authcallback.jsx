@@ -1,29 +1,37 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { setAccessToken, tryRefresh } from '../utilis/auth'
+import { setAccessToken } from '../utilis/auth'
 
-export default function AuthCallback() {
-    const navigate = useNavigate()
+function AuthCallback() {
+  const navigate = useNavigate()
 
-    useEffect(() => {
-        async function finishLogin() {
-            // The backend set the refresh token as an HttpOnly cookie
-            // and redirected here. We just need to exchange it for an access token.
-            const res = await tryRefresh()
-            if (res && res.access) {
-                setAccessToken(res.access)
-                navigate('/')
-            } else {
-                navigate('/login?error=auth_failed')
-            }
+  useEffect(() => {
+    fetch('/api/token/refresh/', {
+      method: 'POST',
+      credentials: 'include',
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Refresh failed')
+        return res.json()
+      })
+      .then(data => {
+        if (data.access) {
+          setAccessToken(data.access)
+          navigate('/')  // or your logged-in home page
+        } else {
+          throw new Error('No access token')
         }
+      })
+      .catch(() => {
+        navigate('/login')
+      })
+  }, [navigate])
 
-        finishLogin()
-    }, [navigate])
-
-    return (
-        <div className="min-h-screen flex items-center justify-center">
-            <p className="text-gray-600">Logging you in...</p>
-        </div>
-    )
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <p>Logging you in...</p>
+    </div>
+  )
 }
+
+export default AuthCallback

@@ -8,11 +8,10 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ── Core Django ──────────────────────────────────────
 SECRET_KEY = os.getenv('SECRET_KEY')
-
-DEBUG = True
-
-ALLOWED_HOSTS = []
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -37,9 +36,11 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    # ← NEW: serves CSS/JS in production
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'core.middleware.ForceCorsCredentialsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -68,7 +69,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'fpl_backend.wsgi.application'
 
-
+# ── Database ─────────────────────────────────────────
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -76,7 +77,8 @@ DATABASES = {
         'USER': os.getenv('DB_USER'),
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432')
+        'PORT': os.getenv('DB_PORT', '5432'),
+        'CONN_MAX_AGE': 600,  # ← NEW: reuse DB connections for 10 minutes
     }
 }
 
@@ -113,15 +115,13 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-
-    # ── Throttling ─────────────────────────────────────
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',      # Unauthenticated users
-        'user': '1000/day',     # Logged-in users
+        'anon': '100/day',
+        'user': '1000/day',
     }
 }
 
@@ -130,17 +130,31 @@ SITE_ID = 2
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*']
+ACCOUNT_EMAIL_VERIFICATION = os.getenv('ACCOUNT_EMAIL_VERIFICATION', 'none')
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 1
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_ADAPTER = 'core.adapters.CustomSocialAccountAdapter'
 
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+    }
+}
 
-# ── Redis / Celery ────────────────────────────────────
+# ── Redis / Celery ───────────────────────────────────
 REDIS_URL = os.getenv('REDIS_URL')
 
-CELERY_BROKER_URL = REDIS_URL + '?ssl_cert_reqs=CERT_NONE'
-CELERY_RESULT_BACKEND = REDIS_URL + '?ssl_cert_reqs=CERT_NONE'
+# Use proper SSL in production, fallback to CERT_NONE only for local dev
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+
 CELERY_BEAT_SCHEDULE = {
     'ingest-live-npl-matches': {
         'task': 'core.tasks.ingest_live_npl_matches',
-        'schedule': 300.0,  # every 5 minutes
+        'schedule': 300.0,
     },
 }
 
@@ -150,25 +164,21 @@ CACHES = {
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'CONNECTION_POOL_KWARGS': {'ssl_cert_reqs': None}
         }
     }
 }
 
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-ACCOUNT_CONFIRM_EMAIL_ON_GET = True
-ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 1
-
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# ── Email ────────────────────────────────────────────
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')      # your Gmail
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')  # Gmail app password
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER', 'noreply@nplfantasy.com')
 
-
-# ── Swagger ───────────────────────────────────────────
+# ── Swagger ──────────────────────────────────────────
 SPECTACULAR_SETTINGS = {
     'TITLE': 'NPL Fantasy API',
     'DESCRIPTION': 'Nepal Premier League Fantasy Cricket API',
@@ -177,18 +187,53 @@ SPECTACULAR_SETTINGS = {
     'POSTPROCESSING_HOOKS': [],
 }
 
+# ── CORS ─────────────────────────────────────────────
+CORS_ALLOWED_ORIGINS = os.getenv(
+    'CORS_ALLOWED_ORIGINS',
+    'http://localhost,http://localhost:5173'
+).split(',')
 
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://localhost',
-]
-
-# Allow cookies (HttpOnly refresh token) to be sent cross-origin from the frontend
 CORS_ALLOW_CREDENTIALS = True
-SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = False  # True only in production with HTTPS
 
-# ── Test overrides ────────────────────────────────────
+# ── Security (only active when DEBUG=False) ──────────
+if not DEBUG:
+    # SECURE_SSL_REDIRECT = True           # Force HTTP → HTTPS
+    # SESSION_COOKIE_SECURE = True         # Cookies only over HTTPS
+    # CSRF_COOKIE_SECURE = True            # CSRF token only over HTTPS
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    CSRF_COOKIE_SAMESITE = 'Lax'
+
+    # HSTS: uncomment ONLY after you've tested HTTPS for 24 hours
+    # SECURE_HSTS_SECONDS = 31536000
+    # SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+# ── Static Files (Whitenoise) ────────────────────────
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# ── Media Files ──────────────────────────────────────
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ── URLs for redirects (replaces hardcoded localhost) ─
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost')
+BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
+
+# ── Internationalization ─────────────────────────────
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'UTC'
+USE_I18N = True
+USE_TZ = True
+
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http'
+LOGIN_REDIRECT_URL = '/api/auth/complete/'
+SOCIALACCOUNT_LOGIN_ON_GET = True
+
+AUTH_USER_MODEL = 'core.User'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ── Test overrides ───────────────────────────────────
 if 'test' in sys.argv:
     CACHES = {
         'default': {
@@ -199,29 +244,3 @@ if 'test' in sys.argv:
     CELERY_TASK_EAGER_PROPAGATES = True
     CELERY_BROKER_URL = 'memory://'
     CELERY_RESULT_BACKEND = 'cache+memory://'
-ACCOUNT_EMAIL_VERIFICATION = 'none'
-SOCIALACCOUNT_AUTO_SIGNUP = True
-SOCIALACCOUNT_QUERY_EMAIL = True
-SOCIALACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_EMAIL_REQUIRED = True
-
-SOCIALACCOUNT_PROVIDERS = {
-    'google': {
-        'SCOPE': ['profile', 'email'],
-        'AUTH_PARAMS': {'access_type': 'online'},
-    }
-}
-SOCIALACCOUNT_ADAPTER = 'core.adapters.CustomSocialAccountAdapter'
-
-# ── Internationalization ──────────────────────────────
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
-ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http'
-LOGIN_REDIRECT_URL = '/auth/complete/'
-SOCIALACCOUNT_LOGIN_ON_GET = True
-
-STATIC_URL = 'static/'
-AUTH_USER_MODEL = 'core.User'
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
