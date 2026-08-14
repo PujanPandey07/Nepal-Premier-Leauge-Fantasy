@@ -1,3 +1,5 @@
+from django.db.models.functions import DenseRank
+from django.db.models import Sum, Count, F, Window
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from allauth.account.models import EmailConfirmation, EmailConfirmationHMAC
@@ -11,7 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from allauth.socialaccount.models import SocialAccount
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.conf import settings
-from .serializers import CustomTokenObtainPairSerializer
+from .serializers import CustomTokenObtainPairSerializer, GlobalLeaderboardSerializer
 from .permissions import IsAdminOrReadOnly, IsAuthenticated
 from decimal import Decimal
 from django.core.cache import cache
@@ -558,3 +560,66 @@ def verify_email_view(request, key):
 @permission_classes([AllowAny])
 def health_check(request):
     return Response({'status': 'ok', 'service': 'django'})
+
+
+class TournamentLeaderboardView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        tournament_id = request.query_params.get('tournament')
+
+        if not tournament_id:
+            return Response(
+                {'detail': 'tournament query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        cache_key = f'leaderboard_tournament_{tournament_id}'
+        page_number = request.query_params.get('page', 1)
+        cache_key += f'_page_{page_number}'
+
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
+        # Show ALL users who have played in this tournament, even with 0 points
+        queryset = User.objects.filter(
+            fantasy_teams__tournament_id=tournament_id
+        ).annotate(
+            total_fantasy_points=Sum('fantasy_teams__total_points', default=0),
+            teams_played=Count('fantasy_teams', distinct=True)
+        ).order_by('-total_fantasy_points', 'name')
+
+        # Paginate first
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(queryset, request)
+
+        # Compute rank in Python
+        items = page if page is not None else queryset
+        results = []
+        current_rank = 0
+        previous_points = None
+
+        for idx, user_obj in enumerate(items, start=1):
+            if user_obj.total_fantasy_points != previous_points:
+                current_rank = idx
+                previous_points = user_obj.total_fantasy_points
+
+            results.append({
+                'id': user_obj.id,
+                'rank': current_rank,
+                'name': user_obj.name,
+                'email': user_obj.email,
+                'total_fantasy_points': str(user_obj.total_fantasy_points),
+                'teams_played': user_obj.teams_played,
+            })
+
+        response_data = {
+            'count': paginator.page.paginator.count if page else len(results),
+            'next': paginator.get_next_link() if page else None,
+            'previous': paginator.get_previous_link() if page else None,
+            'results': results,
+        }
+
+        cache.set(cache_key, response_data, 300)
+        return Response(response_data)

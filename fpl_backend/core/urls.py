@@ -2,7 +2,7 @@ from django.urls import include, path
 from rest_framework import routers
 from .views import (
     InitiatePaymentView, MatchPerformanceView, MeView, NewsView,
-    SportsView, VerifyPaymentView, TournamentView, CricketTeamView,
+    SportsView, TournamentLeaderboardView, VerifyPaymentView, TournamentView, CricketTeamView,
     PlayerView, MatchView, FantasyTeamView, FantasyTeamPlayerView,
     TransactionView, LeagueView, LeagueMemberView, register_view
 )
@@ -31,4 +31,6 @@ urlpatterns = [
     path('payments/verify/', VerifyPaymentView.as_view()),
     path('users/me/', MeView.as_view(), name='me'),
     path('auth/register/', register_view, name='register'),
+    path('leaderboard/', TournamentLeaderboardView.as_view(),
+         name='tournament-leaderboard')
 ]

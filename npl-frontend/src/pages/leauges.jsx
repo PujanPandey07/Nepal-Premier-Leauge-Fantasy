@@ -1,3 +1,4 @@
+
 // Leagues.jsx
 import { useEffect, useState } from "react";
 import Navbar from "../components/navbar";
@@ -6,7 +7,7 @@ import axiosInstance from '../utilis/axiosInstance'
 import { useAuth } from '../context/AuthContext'
 
 function Leagues() {
-  const { isLoggedIn, userId } = useAuth()  // ← single source of truth
+  const { isLoggedIn, userId } = useAuth()
   const [allLeagues, setAllLeagues] = useState([])
   const [myLeagues, setMyLeagues] = useState([])
   const [members, setMembers] = useState([])
@@ -18,6 +19,13 @@ function Leagues() {
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [tournaments, setTournaments] = useState([])
+
+  // ── Leaderboard state ──────────────────────────────
+  const [leaderboard, setLeaderboard] = useState([])
+  const [leaderboardTournament, setLeaderboardTournament] = useState('')
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false)
+  const [leaderboardNext, setLeaderboardNext] = useState(null)
+  const [leaderboardPrev, setLeaderboardPrev] = useState(null)
 
   const [form, setForm] = useState({
     name: '',
@@ -51,7 +59,9 @@ function Leagues() {
         setAllLeagues(leagues)
         setNextPage(leaguesRes.data.next)
         setPrevPage(leaguesRes.data.previous)
-        setTournaments(tournamentsRes.data.results || tournamentsRes.data)
+
+        const tourneyList = tournamentsRes.data.results || tournamentsRes.data || []
+        setTournaments(tourneyList)
 
         const membersList = membersRes.data.results || membersRes.data || []
         setMembers(membersList)
@@ -73,15 +83,50 @@ function Leagues() {
       .finally(() => setLoading(false))
   }, [isLoggedIn, userId])
 
+  // ── Fetch leaderboard when tab or tournament changes ──
+  useEffect(() => {
+    if (activeTab !== 'leaderboard') return
+    if (!leaderboardTournament) {
+      setLeaderboard([])
+      return
+    }
+
+    setLeaderboardLoading(true)
+    axiosInstance.get(`/api/leaderboard/?tournament=${leaderboardTournament}`)
+      .then(res => {
+        setLeaderboard(res.data.results || [])
+        setLeaderboardNext(res.data.next)
+        setLeaderboardPrev(res.data.previous)
+      })
+      .catch(err => {
+        console.error('Error fetching leaderboard:', err)
+        setLeaderboard([])
+      })
+      .finally(() => setLeaderboardLoading(false))
+  }, [activeTab, leaderboardTournament])
+
   const goToPage = (url) => {
     if (!url) return
-    axiosInstance.get(url)  // ← was plain axios, now uses axiosInstance
+    axiosInstance.get(url)
       .then(res => {
         setAllLeagues(res.data.results || res.data)
         setNextPage(res.data.next)
         setPrevPage(res.data.previous)
       })
       .catch(error => console.error('Error fetching leagues:', error))
+  }
+
+  const goToLeaderboardPage = (url) => {
+    if (!url) return
+    setLeaderboardLoading(true)
+    axiosInstance.get(url)
+      .then(res => {
+        setLeaderboard(res.data.results || [])
+        setLeaderboardNext(res.data.next)
+        setLeaderboardPrev(res.data.previous)
+      })
+      .catch(err => console.error('Error fetching leaderboard:', err))
+      .finally(() => setLeaderboardLoading(false))
   }
 
   const handleFormChange = (e) => {
@@ -176,11 +221,56 @@ function Leagues() {
             </div>
             <div className="text-gray-800 font-semibold">
               {(() => {
-                   const member = members.find(m => m.league === league.id && (m.user === userId || league.created_by === userId))
+                const member = members.find(m => m.league === league.id && (m.user === userId || league.created_by === userId))
                 return member ? (member.points || 0) : '-'
               })()}
             </div>
           </Link>
+        ))
+      )}
+    </div>
+  )
+
+  const LeaderboardTable = () => (
+    <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="grid grid-cols-5 bg-gray-800 text-white text-sm font-semibold p-4">
+        <span>Rank</span>
+        <span>Player</span>
+        <span className="text-right">Teams Played</span>
+        <span className="text-right">Total Points</span>
+        <span className="text-right">Status</span>
+      </div>
+      {leaderboardLoading ? (
+        <p className="text-gray-500 text-sm p-4">Loading leaderboard...</p>
+      ) : leaderboard.length === 0 ? (
+        <p className="text-gray-500 text-sm p-4">
+          {leaderboardTournament ? 'No players found for this season.' : 'Select a tournament to view the leaderboard.'}
+        </p>
+      ) : (
+        leaderboard.map((player) => (
+          <div
+            key={player.id}
+            className={`grid grid-cols-5 items-center p-4 border-b border-gray-200 gap-4 ${
+              player.id === userId ? 'bg-blue-50' : 'hover:bg-gray-50'
+            }`}
+          >
+            <div className="font-bold text-lg">
+              {player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : player.rank === 3 ? '🥉' : player.rank}
+            </div>
+            <div>
+              <div className="font-semibold text-gray-800">{player.name}</div>
+              <div className="text-xs text-gray-500">{player.email}</div>
+            </div>
+            <div className="text-right text-gray-600">{player.teams_played}</div>
+            <div className="text-right font-mono font-bold text-gray-800">{player.total_fantasy_points}</div>
+            <div className="text-right">
+              {player.id === userId ? (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">You</span>
+              ) : (
+                <span className="text-xs text-gray-400">—</span>
+              )}
+            </div>
+          </div>
         ))
       )}
     </div>
@@ -199,7 +289,6 @@ function Leagues() {
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">NPL Leagues</h1>
-        {/* Only show Create League button when logged in */}
         {isLoggedIn && (
           <button
             onClick={() => setShowCreateModal(true)}
@@ -211,18 +300,18 @@ function Leagues() {
       </div>
 
       {/* Tab toggle */}
-      {isLoggedIn && (
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 rounded-lg font-medium text-sm ${
-              activeTab === 'all'
-                ? 'bg-gray-800 text-white'
-                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            All Leagues
-          </button>
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`px-4 py-2 rounded-lg font-medium text-sm ${
+            activeTab === 'all'
+              ? 'bg-gray-800 text-white'
+              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+          }`}
+        >
+          All Leagues
+        </button>
+        {isLoggedIn && (
           <button
             onClick={() => setActiveTab('my')}
             className={`px-4 py-2 rounded-lg font-medium text-sm ${
@@ -233,28 +322,83 @@ function Leagues() {
           >
             My Leagues
           </button>
+        )}
+        <button
+          onClick={() => setActiveTab('leaderboard')}
+          className={`px-4 py-2 rounded-lg font-medium text-sm ${
+            activeTab === 'leaderboard'
+              ? 'bg-gray-800 text-white'
+              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+          }`}
+        >
+          🏆 Leaderboard
+        </button>
+      </div>
+
+      {/* ── Leaderboard Tab ────────────────────────────── */}
+      {activeTab === 'leaderboard' && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700">Select Season:</label>
+            <select
+              value={leaderboardTournament}
+              onChange={(e) => setLeaderboardTournament(e.target.value)}
+              className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+            >
+              <option value="">— Choose a tournament —</option>
+              {tournaments.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <LeaderboardTable />
+
+          {(leaderboardNext || leaderboardPrev) && (
+            <div className="flex justify-between mt-4">
+              <button
+                disabled={!leaderboardPrev}
+                onClick={() => goToLeaderboardPage(leaderboardPrev)}
+                className="disabled:opacity-30 text-sm bg-white border border-gray-300 px-4 py-2 rounded hover:bg-gray-50"
+              >
+                ← Previous
+              </button>
+              <button
+                disabled={!leaderboardNext}
+                onClick={() => goToLeaderboardPage(leaderboardNext)}
+                className="disabled:opacity-30 text-sm bg-white border border-gray-300 px-4 py-2 rounded hover:bg-gray-50"
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      <LeagueTable leagues={activeTab === 'all' ? allLeagues : myLeagues} />
+      {/* ── Leagues Tabs ───────────────────────────────── */}
+      {activeTab !== 'leaderboard' && (
+        <>
+          <LeagueTable leagues={activeTab === 'all' ? allLeagues : myLeagues} />
 
-      {activeTab === 'all' && (
-        <div className="flex justify-between mt-4">
-          <button
-            disabled={!prevPage}
-            onClick={() => goToPage(prevPage)}
-            className="disabled:opacity-30"
-          >
-            Previous
-          </button>
-          <button
-            disabled={!nextPage}
-            onClick={() => goToPage(nextPage)}
-            className="disabled:opacity-30"
-          >
-            Next
-          </button>
-        </div>
+          {activeTab === 'all' && (
+            <div className="flex justify-between mt-4">
+              <button
+                disabled={!prevPage}
+                onClick={() => goToPage(prevPage)}
+                className="disabled:opacity-30"
+              >
+                Previous
+              </button>
+              <button
+                disabled={!nextPage}
+                onClick={() => goToPage(nextPage)}
+                className="disabled:opacity-30"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Create League Modal */}

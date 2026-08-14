@@ -329,3 +329,16 @@ class TransactionSerializer(serializers.ModelSerializer):
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'email'
+
+
+class GlobalLeaderboardSerializer(serializers.ModelSerializer):
+    rank = serializers.IntegerField(read_only=True)
+    total_fantasy_points = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True
+    )
+    teams_played = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'rank', 'name', 'email',
+                  'total_fantasy_points', 'teams_played']
