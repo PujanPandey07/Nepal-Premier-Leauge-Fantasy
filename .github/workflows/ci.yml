@@ -158,7 +158,8 @@ jobs:
 
       - name: Check Django health (from inside container)
         run: |
-          docker compose exec -T django curl -f http://localhost:8000/health/ || exit 1
+          docker compose exec -T django curl -s http://localhost:8000/health/ | tee response.txt 
+           grep -q '"status": "ok"' response.txt || exit 1
 
       - name: Check frontend is serving
         run: |
