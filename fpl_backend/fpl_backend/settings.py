@@ -3,6 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
+import ssl
 
 load_dotenv()
 
@@ -11,7 +12,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ── Core Django ──────────────────────────────────────
 SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost').split(',')
+ALLOWED_HOSTS = [h.strip() for h in os.getenv(
+    'ALLOWED_HOSTS', 'localhost').split(',') if h.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -37,7 +39,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # ← NEW: serves CSS/JS in production
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'core.middleware.ForceCorsCredentialsMiddleware',
@@ -78,7 +79,7 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
-        'CONN_MAX_AGE': 600,  # ← NEW: reuse DB connections for 10 minutes
+        'CONN_MAX_AGE': 600,
     }
 }
 
@@ -126,7 +127,13 @@ REST_FRAMEWORK = {
 }
 
 # ── allauth ──────────────────────────────────────────
+# ⚠️  IMPORTANT: On a fresh database, Site ID 2 does NOT exist by default.
+# Run this once on the VM before first use:
+#   python manage.py shell -c \
+#   "from django.contrib.sites.models import Site; Site.objects.update_or_create(
+#       id=2, defaults={'domain':'nplfantasy.com','name':'NPL Fantasy'})"
 SITE_ID = 2
+
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*']
@@ -145,9 +152,11 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 # ── Redis / Celery ───────────────────────────────────
-REDIS_URL = os.getenv('REDIS_URL')
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
-# Use proper SSL in production, fallback to CERT_NONE only for local dev
+# Strip query params from rediss:// URLs — django-redis doesn't parse them
+_redis_url_clean = REDIS_URL.split('?')[0]
+
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 
@@ -161,9 +170,12 @@ CELERY_BEAT_SCHEDULE = {
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': REDIS_URL,
+        'LOCATION': _redis_url_clean,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'ssl_cert_reqs': ssl.CERT_NONE,
+            }
         }
     }
 }
@@ -187,27 +199,33 @@ SPECTACULAR_SETTINGS = {
     'POSTPROCESSING_HOOKS': [],
 }
 
-# ── CORS ─────────────────────────────────────────────
-CORS_ALLOWED_ORIGINS = os.getenv(
+# ── CORS & CSRF ──────────────────────────────────────
+CORS_ALLOWED_ORIGINS = [url.strip() for url in os.getenv(
     'CORS_ALLOWED_ORIGINS',
     'http://localhost,http://localhost:5173'
-).split(',')
+).split(',') if url.strip()]
 
 CORS_ALLOW_CREDENTIALS = True
 
+CSRF_TRUSTED_ORIGINS = [url.strip() for url in os.getenv(
+    'CSRF_TRUSTED_ORIGINS',
+    'http://localhost,http://localhost:5173'
+).split(',') if url.strip()]
+
 # ── Security (only active when DEBUG=False) ──────────
 if not DEBUG:
-    # SECURE_SSL_REDIRECT = True           # Force HTTP → HTTPS
-    # SESSION_COOKIE_SECURE = True         # Cookies only over HTTPS
-    # CSRF_COOKIE_SECURE = True            # CSRF token only over HTTPS
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_SAMESITE = 'Lax'
     CSRF_COOKIE_SAMESITE = 'Lax'
 
-    # HSTS: uncomment ONLY after you've tested HTTPS for 24 hours
+    # Uncomment ONLY after you've tested HTTPS for 24 hours
+    # SECURE_SSL_REDIRECT = True
+    # SESSION_COOKIE_SECURE = True
+    # CSRF_COOKIE_SECURE = True
     # SECURE_HSTS_SECONDS = 31536000
     # SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
-# ── Static Files (Whitenoise) ────────────────────────
+# ── Static Files (Whitenoise + Nginx) ────────────────
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -216,9 +234,11 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# ── URLs for redirects (replaces hardcoded localhost) ─
+# ── URLs for redirects ───────────────────────────────
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost')
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = os.getenv(
+    'ACCOUNT_DEFAULT_HTTP_PROTOCOL', 'http')
 
 # ── Internationalization ─────────────────────────────
 LANGUAGE_CODE = 'en-us'
@@ -226,7 +246,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http'
 LOGIN_REDIRECT_URL = '/api/auth/complete/'
 SOCIALACCOUNT_LOGIN_ON_GET = True
 

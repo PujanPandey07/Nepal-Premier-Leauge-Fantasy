@@ -1,0 +1,53 @@
+name: CD - Deploy to Azure VM
+
+on:
+  # Option A: Deploy only after CI passes (RECOMMENDED)
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main, master]
+    types:
+      - completed
+
+  # Option B: Manual deploy button (always available)
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    # Only deploy if CI succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Azure VM via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.AZURE_VM_IP }}
+          username: ${{ secrets.AZURE_VM_USER }}
+          key: ${{ secrets.AZURE_VM_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            echo "🚀 Starting deployment..."
+
+            cd ~/npl-fantasy
+            git fetch origin
+            git reset --hard origin/main
+
+            echo "🔧 Building and restarting containers..."
+            docker compose down
+            docker compose up -d --build
+
+            echo "⏳ Waiting for Django to start..."
+            sleep 15
+
+            echo "🗄️  Running migrations..."
+            docker compose exec -T django python manage.py migrate --noinput
+
+            echo "🩺 Health checks..."
+            curl -sf http://localhost/api/ > /dev/null || (echo "❌ API health check failed" && exit 1)
+            curl -sf http://localhost/ > /dev/null || (echo "❌ Frontend health check failed" && exit 1)
+
+            echo "🧹 Cleaning up old Docker images..."
+            docker system prune -af --volumes=false
+
+            echo "✅ Deployment complete!"
