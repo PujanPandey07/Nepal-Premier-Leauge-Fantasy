@@ -301,7 +301,6 @@ class TransactionView(viewsets.ModelViewSet):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
-@throttle_classes([AuthRateThrottle])
 def register_view(request):
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
@@ -396,7 +395,6 @@ class VerifyPaymentView(APIView):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
-    throttle_classes = [AuthRateThrottle]
 
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
@@ -426,7 +424,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class CookieTokenRefreshView(TokenRefreshView):
-    throttle_classes = [AuthRateThrottle]
 
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get(
@@ -470,7 +467,6 @@ class CookieTokenRefreshView(TokenRefreshView):
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
-    throttle_classes = [AuthRateThrottle]
 
     def post(self, request):
         refresh_token = request.COOKIES.get(

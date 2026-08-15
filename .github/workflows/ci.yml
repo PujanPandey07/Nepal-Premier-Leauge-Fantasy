@@ -16,10 +16,26 @@ jobs:
       - name: Check for hardcoded localhost URLs in frontend
         run: |
           if grep -r "localhost:8000" npl-frontend/src/; then
-            echo "❌ Found hardcoded localhost:8000 in frontend. Use relative URLs or import.meta.env.VITE_API_URL"
+            echo "❌ Found hardcoded localhost:8000 in frontend"
             exit 1
           fi
           echo "✅ No hardcoded localhost URLs found"
+
+      - name: Create test .env
+        run: |
+          cat > .env << 'EOF'
+          DEBUG=True
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          DB_NAME=test_db
+          DB_HOST=postgres
+          DB_USER=test_user
+          DB_PASSWORD=test_password
+          DB_PORT=5432
+          REDIS_URL=redis://redis:6379/0
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          CORS_ALLOWED_ORIGINS=http://localhost,http://localhost:5173
+          EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+          EOF
 
       - name: Validate docker-compose syntax
         run: docker compose config
@@ -34,12 +50,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build all services with docker compose
+      - name: Create test .env
+        run: |
+          cat > .env << 'EOF'
+          DEBUG=True
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          DB_NAME=test_db
+          DB_HOST=postgres
+          DB_USER=test_user
+          DB_PASSWORD=test_password
+          DB_PORT=5432
+          REDIS_URL=redis://redis:6379/0
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          CORS_ALLOWED_ORIGINS=http://localhost,http://localhost:5173
+          EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+          EOF
+
+      - name: Build all services
         run: docker compose build
 
       - name: Verify frontend builds with production env
         run: |
-          # Ensure .env.production exists
           test -f npl-frontend/.env.production || (echo "❌ Missing .env.production" && exit 1)
           docker build -t npl-frontend ./npl-frontend
 
@@ -88,7 +119,7 @@ jobs:
             -e DB_NAME=test_db \
             -e DB_USER=test_user \
             -e DB_PASSWORD=test_password \
-            -e SECRET_KEY=ci-test-secret-key \
+            -e SECRET_KEY=ci-test-secret-key-not-for-production \
             -e REDIS_URL=redis://localhost:6379/0 \
             -e DEBUG=True \
             -e ALLOWED_HOSTS=localhost,127.0.0.1 \
@@ -103,12 +134,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Start services
+      - name: Create test .env
         run: |
-          # Create a test .env
           cat > .env << 'EOF'
           DEBUG=True
-          SECRET_KEY=ci-test-secret-key
+          SECRET_KEY=ci-test-secret-key-not-for-production
           DB_NAME=test_db
           DB_HOST=postgres
           DB_USER=test_user
@@ -120,24 +150,22 @@ jobs:
           EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
           EOF
 
-          docker compose up -d
-          sleep 10
+      - name: Start services
+        run: docker compose up -d
 
-      - name: Check health endpoints
+      - name: Wait for services to be ready
+        run: sleep 15
+
+      - name: Check Django health (from inside container)
         run: |
-          curl -f http://localhost:8000/health/ || exit 1
+          docker compose exec -T django curl -f http://localhost:8000/health/ || exit 1
+
+      - name: Check frontend is serving
+        run: |
           curl -f http://localhost/ || exit 1
 
       - name: Run migrations
         run: docker compose exec -T django python manage.py migrate
-
-      - name: Create superuser
-        run: |
-          docker compose exec -T django python manage.py shell << 'EOF'
-          from django.contrib.auth import get_user_model
-          User = get_user_model()
-          User.objects.create_superuser('admin@nplfantasy.com', 'adminpass')
-          EOF
 
       - name: Cleanup
         if: always()

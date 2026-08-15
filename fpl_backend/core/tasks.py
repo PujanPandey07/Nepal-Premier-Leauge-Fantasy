@@ -128,6 +128,9 @@ def _write_innings(match, innings_data, innings_number, is_complete):
                 f"[INGEST] Could not find team: '{team_name}' — skipping innings {innings_number}")
             return
 
+    # Save the innings row WITHOUT marking it complete yet — we need
+    # the object to attach performance rows to, but shouldn't trigger
+    # the points signal until those rows actually exist.
     innings, _ = Innings.objects.update_or_create(
         match=match, innings_number=innings_number,
         defaults={
@@ -139,6 +142,8 @@ def _write_innings(match, innings_data, innings_number, is_complete):
         }
     )
 
+    # merge batting + bowling stats per player — an all-rounder appears in
+    # both lists for the same innings, and should end up as one row, not two
     stats_by_cricbuzz_id = {}
     for b in innings_data.get('batsman', []):
         stats_by_cricbuzz_id.setdefault(int(b['id']), {}).update({
@@ -147,10 +152,12 @@ def _write_innings(match, innings_data, innings_number, is_complete):
             'fours': b.get('fours', 0),
             'sixes': b.get('sixes', 0),
             'strike_rate': Decimal(str(b.get('strkrate') or 0)),
+            'how_out': b.get('outdec'),
         })
     for bl in innings_data.get('bowler', []):
         stats_by_cricbuzz_id.setdefault(int(bl['id']), {}).update({
             'wickets_taken': bl.get('wickets', 0),
+            'overs_bowled': Decimal(str(bl.get('overs') or 0)),
             'economy_rate': Decimal(str(bl.get('economy') or 0)),
             'maidens': bl.get('maidens', 0),
         })
@@ -159,11 +166,13 @@ def _write_innings(match, innings_data, innings_number, is_complete):
         try:
             player = Player.objects.get(cricbuzz_id=cricbuzz_id)
         except Player.DoesNotExist:
-            continue
+            continue  # don't let one unmatched player crash the whole poll
         Player_Match_Performance.objects.update_or_create(
             player=player, match=match, innings=innings, defaults=stats,
         )
 
+    # Only NOW mark it complete, once every performance row for this
+    # innings genuinely exists — this is what should trigger the signal.
     if is_complete:
         innings.is_complete = True
         innings.save()
