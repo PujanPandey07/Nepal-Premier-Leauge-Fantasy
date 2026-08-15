@@ -120,14 +120,19 @@ def update_league_rankings(sender, instance, **kwargs):
                 joined_at__lte=instance.match_date
             ).update(points=F('points') + total_points)
 
-            # update rankings by ordering members by points
-        members = LeagueMember.objects.filter(
-            league__tournament=instance.tournament
-        ).order_by('-points')
+        # Rank members WITHIN each league separately — ranking is a
+        # per-league standing, not a position in the whole tournament's
+        # combined member pool across every league.
+        leagues = League.objects.filter(tournament=instance.tournament)
+        for league in leagues:
+            league_members = LeagueMember.objects.filter(
+                league=league
+            ).order_by('-points')
 
-        for rank, member in enumerate(members, start=1):
-            LeagueMember.objects.filter(
-                pk=member.pk).update(ranking=rank)
+            for rank, member in enumerate(league_members, start=1):
+                LeagueMember.objects.filter(
+                    pk=member.pk).update(ranking=rank)
+
         total_matches = Match.objects.filter(
             tournament=instance.tournament).count()
 
