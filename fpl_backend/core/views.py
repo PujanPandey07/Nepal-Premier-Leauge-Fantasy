@@ -554,6 +554,7 @@ def verify_email_view(request, key):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def health_check(request):
     return Response({'status': 'ok', 'service': 'django'})
 
