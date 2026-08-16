@@ -31,7 +31,7 @@ jobs:
 
             cd ~/Nepal-Premier-Leauge-Fantasy
             git fetch origin
-            git reset --hard origin/main
+            git reset --hard origin/Master
 
             echo "🔧 Building and restarting containers..."
             docker compose down
