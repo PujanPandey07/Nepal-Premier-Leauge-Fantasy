@@ -21,7 +21,7 @@ urlpatterns = [
     # includes register, me, payments, router
     path('api/', include('core.urls')),
     path("accounts/", include("allauth.urls")),
-    path('health/', health_check, name='health'),
+    path('api/health/', health_check, name='health'),
     path('api/auth/complete/', GoogleLoginCompleteView.as_view(),
          name='google_complete'),
 ]
