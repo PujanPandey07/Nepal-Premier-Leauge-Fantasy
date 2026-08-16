@@ -1,10 +1,10 @@
 // auth.js — in-memory access token and cookie-based refresh helpers
-import axiosInstance from './axiosInstance'  // ← ADD THIS IMPORT
 
 const BASE_URL = ''
 
 let accessToken = null
 let listeners = []
+let refreshPromise = null
 
 function notifyListeners() {
   listeners.forEach(listener => listener(accessToken))
@@ -32,35 +32,55 @@ export function removeAccessToken() {
 }
 
 export async function tryRefresh() {
-  try {
-    const res = await fetch(`${BASE_URL}/api/token/refresh/`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-    })
+  if (refreshPromise) {
+    return refreshPromise
+  }
 
-    if (!res.ok) {
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/token/refresh/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        console.error('Refresh failed:', errData)
+        removeAccessToken()
+        return null
+      }
+
+      const data = await res.json()
+      if (data?.access) {
+        setAccessToken(data.access)
+      }
+      return data
+    } catch (err) {
+      console.error('Refresh network error:', err)
       removeAccessToken()
       return null
+    } finally {
+      refreshPromise = null
     }
+  })()
 
-    const data = await res.json()
-    if (data?.access) {
-      setAccessToken(data.access)
-    }
-    return data
-  } catch (err) {
-    removeAccessToken()
-    return null
-  }
+  return refreshPromise
 }
 
 export async function logout() {
   try {
-    // axiosInstance automatically attaches the Bearer token
-    await axiosInstance.post('/api/auth/logout/')
+    const token = getAccessToken()
+    await fetch(`${BASE_URL}/api/auth/logout/`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+    })
   } catch (err) {
-    // ignore network errors — still clear local state
+    // ignore
   }
   removeAccessToken()
 }

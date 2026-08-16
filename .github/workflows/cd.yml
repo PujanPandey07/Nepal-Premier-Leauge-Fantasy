@@ -29,7 +29,7 @@ jobs:
             set -e
             echo "🚀 Starting deployment..."
 
-            cd ~/npl-fantasy
+            cd ~/Nepal-Premier-Leauge-Fantasy
             git fetch origin
             git reset --hard origin/main
 
@@ -44,7 +44,7 @@ jobs:
             docker compose exec -T django python manage.py migrate --noinput
 
             echo "🩺 Health checks..."
-            curl -sf http://localhost/api/ > /dev/null || (echo "❌ API health check failed" && exit 1)
+            curl -sf http://localhost/api/health/ > /dev/null || (echo "❌ API health check failed" && exit 1)
             curl -sf http://localhost/ > /dev/null || (echo "❌ Frontend health check failed" && exit 1)
 
             echo "🧹 Cleaning up old Docker images..."

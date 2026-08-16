@@ -1,9 +1,10 @@
-import sys
-from pathlib import Path
-from dotenv import load_dotenv
-import os
-from datetime import timedelta
 import ssl
+from datetime import timedelta
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+import sys
+
 
 load_dotenv()
 
@@ -167,16 +168,21 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+_cache_options = {
+    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+}
+
+# Only add SSL kwargs for TLS connections (rediss://)
+if REDIS_URL.startswith('rediss://'):
+    _cache_options['CONNECTION_POOL_KWARGS'] = {
+        'ssl_cert_reqs': ssl.CERT_NONE,
+    }
+
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': _redis_url_clean,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'CONNECTION_POOL_KWARGS': {
-                'ssl_cert_reqs': ssl.CERT_NONE,
-            }
-        }
+        'OPTIONS': _cache_options
     }
 }
 

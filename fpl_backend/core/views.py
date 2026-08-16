@@ -416,7 +416,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 'jwt-refresh-auth',
                 refresh,
                 httponly=True,
-                secure=not settings.DEBUG,
+                secure=request.is_secure(),      # ← FIX
                 samesite='Lax',
                 path='/'
             )
@@ -458,7 +458,7 @@ class CookieTokenRefreshView(TokenRefreshView):
                 'jwt-refresh-auth',
                 new_refresh,
                 httponly=True,
-                secure=not settings.DEBUG,
+                secure=request.is_secure(),      # ← FIX
                 samesite='Lax',
                 path='/'
             )
@@ -505,7 +505,7 @@ class GoogleLoginCompleteView(View):
             'jwt-refresh-auth',
             refresh_token,
             httponly=True,
-            secure=not settings.DEBUG,
+            secure=request.is_secure(),      # ← FIX
             samesite='Lax',
             path='/'
         )

@@ -1,14 +1,12 @@
 import axios from 'axios'
-import { getAccessToken, setAccessToken, tryRefresh } from './auth'
-
-const BASE_URL = ''
+import { getAccessToken, tryRefresh, removeAccessToken } from './auth'
 
 const axiosInstance = axios.create({
-  baseURL: BASE_URL,
-  withCredentials: true,  // ← ADD THIS LINE
+  baseURL: '',
+  withCredentials: true,
 })
 
-// REQUEST interceptor — attach in-memory access token
+// REQUEST interceptor
 axiosInstance.interceptors.request.use(
   config => {
     const token = getAccessToken()
@@ -20,7 +18,7 @@ axiosInstance.interceptors.request.use(
   error => Promise.reject(error)
 )
 
-// RESPONSE interceptor — catch 401s and refresh
+// RESPONSE interceptor
 axiosInstance.interceptors.response.use(
   response => response,
 
@@ -28,32 +26,32 @@ axiosInstance.interceptors.response.use(
     const originalRequest = error.config
 
     if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url.includes('/api/token/refresh/')
+      error.response?.status !== 401 ||
+      originalRequest._retry ||
+      originalRequest.url?.includes('/api/token/refresh/')
     ) {
-      originalRequest._retry = true
-
-      try {
-        const res = await tryRefresh()
-        if (!res || !res.access) {
-          setAccessToken(null)
-          window.location.href = '/login'
-          return Promise.reject(error)
-        }
-
-        setAccessToken(res.access)
-        originalRequest.headers.Authorization = `Bearer ${res.access}`
-        return axiosInstance(originalRequest)
-
-      } catch (refreshError) {
-        setAccessToken(null)
-        window.location.href = '/login'
-        return Promise.reject(refreshError)
-      }
+      return Promise.reject(error)
     }
 
-    return Promise.reject(error)
+    originalRequest._retry = true
+
+    try {
+      const data = await tryRefresh()
+
+      if (!data?.access) {
+        removeAccessToken()
+        window.location.href = '/login'
+        return Promise.reject(new Error('Session expired. Please log in again.'))
+      }
+
+      originalRequest.headers.Authorization = `Bearer ${data.access}`
+      return axiosInstance(originalRequest)
+
+    } catch (refreshError) {
+      removeAccessToken()
+      window.location.href = '/login'
+      return Promise.reject(refreshError)
+    }
   }
 )
 
