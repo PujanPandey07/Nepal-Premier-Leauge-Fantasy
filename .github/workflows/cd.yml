@@ -4,7 +4,7 @@ on:
   # Option A: Deploy only after CI passes (RECOMMENDED)
   workflow_run:
     workflows: ["CI"]
-    branches: [main, master]
+    branches: [Master, main]
     types:
       - completed
 
