@@ -1,7 +1,8 @@
+from django.conf import settings
 import requests
 import os
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv
 
 KHALTI_SECRET_KEY = os.getenv('KHALTI_SECRET_KEY')
 KHALTI_INITIATE_URL = 'https://dev.khalti.com/api/v2/epayment/initiate/'
@@ -14,7 +15,7 @@ def initiate_payment(amount, transaction_id, user, return_url):
     return {
         'pidx': pidx,
         # Point to our frontend mock payment page instead of verify directly
-        'payment_url': f'http://localhost/mock-payment?pidx={pidx}&amount={amount}'
+        'payment_url': f'http:{settings.frontend_url}/mock-payment?pidx={pidx}&amount={amount}'
     }
 
 
