@@ -1,0 +1,1322 @@
+[
+  {
+    "team_name": "Biratnagar Kings",
+    "squad_id": 97691,
+    "player_count": 22,
+    "players": [
+      {
+        "cricbuzz_id": null,
+        "name": "BATTERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "7825",
+        "name": "Faf du Plessis",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm legbreak",
+        "image_id": 593786
+      },
+      {
+        "cricbuzz_id": "10624",
+        "name": "Sam Heazlett",
+        "role": "Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 155687
+      },
+      {
+        "cricbuzz_id": "10103",
+        "name": "George Munsey",
+        "role": "Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 846143
+      },
+      {
+        "cricbuzz_id": "11166",
+        "name": "Shankar Rana",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1457",
+        "name": "Martin Guptill",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 244827
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "ALL ROUNDERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "1464862",
+        "name": "Narayan Joshi",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "11315",
+        "name": "Shubham Ranjane",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 846097
+      },
+      {
+        "cricbuzz_id": "15396",
+        "name": "Pratis GC",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Left-arm medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1448285",
+        "name": "Naren Bhatta",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "WICKET KEEPERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "15397",
+        "name": "Lokesh Bam",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 847069
+      },
+      {
+        "cricbuzz_id": "1464879",
+        "name": "Sahil Patel",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "BOWLERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "23066",
+        "name": "Basir Ahamad",
+        "role": "Bowler",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 847063
+      },
+      {
+        "cricbuzz_id": "8119",
+        "name": "Marchant de Lange",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast",
+        "image_id": 156939
+      },
+      {
+        "cricbuzz_id": "11158",
+        "name": "Sandeep Lamichhane",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm legbreak",
+        "image_id": 847075
+      },
+      {
+        "cricbuzz_id": "14257",
+        "name": "Surya Tamang",
+        "role": "Bowler",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "52607",
+        "name": "Subash Bhandari",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "OTHERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "1464873",
+        "name": "Sharwan Kisku",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": 174146
+      }
+    ]
+  },
+  {
+    "team_name": "Chitwan Rhinos",
+    "squad_id": 97702,
+    "player_count": 20,
+    "players": [
+      {
+        "cricbuzz_id": null,
+        "name": "BATTERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "22691",
+        "name": "Dev Khanal",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "6660",
+        "name": "Dawid Malan",
+        "role": "Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Right-arm legbreak",
+        "image_id": 351857
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "ALL ROUNDERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "571",
+        "name": "Ravi Bopara",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 157468
+      },
+      {
+        "cricbuzz_id": "15400",
+        "name": "Kushal Malla",
+        "role": "Batting Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 350320
+      },
+      {
+        "cricbuzz_id": "10400",
+        "name": "Saif Zaib",
+        "role": "Batting Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "52575",
+        "name": "Deepak Bohara",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464807",
+        "name": "Gautam KC",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "15009",
+        "name": "Alpesh Ramjani",
+        "role": "Bowling Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464804",
+        "name": "Bipin Acharya",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "12138",
+        "name": "Kamal Singh Airee",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "WICKET KEEPERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "22726",
+        "name": "Arjun Saud",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "52600",
+        "name": "Bipin Rawal",
+        "role": "WK-Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "BOWLERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "55389",
+        "name": "Rijan Dhakal",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Left-arm medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "859",
+        "name": "Sohail Tanvir",
+        "role": "Bowler",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm fast-medium",
+        "image_id": 155525
+      },
+      {
+        "cricbuzz_id": "1448053",
+        "name": "Ranjit Kumar",
+        "role": "Bowler",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464818",
+        "name": "Amar Routela",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 174146
+      }
+    ]
+  },
+  {
+    "team_name": "Janakpur Bolts",
+    "squad_id": 97713,
+    "player_count": 15,
+    "players": [
+      {
+        "cricbuzz_id": null,
+        "name": "BATTERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "1447993",
+        "name": "Mayan Yadav",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464793",
+        "name": "Bikash Aagri",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "ALL ROUNDERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "12112",
+        "name": "Anil Sah",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 155391
+      },
+      {
+        "cricbuzz_id": "1456743",
+        "name": "Rupesh Singh",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "20241",
+        "name": "Sanjay Krishnamurthi",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 846088
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "WICKET KEEPERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "11859",
+        "name": "Lahiru Milantha",
+        "role": "WK-Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "12110",
+        "name": "Aasif Sheikh",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 847059
+      },
+      {
+        "cricbuzz_id": "13438",
+        "name": "Jan Nicol Loftie-Eaton",
+        "role": "WK-Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Right-arm legbreak",
+        "image_id": 844992
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "BOWLERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "10942",
+        "name": "Lahiru Samarakoon",
+        "role": "Bowler",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "13221",
+        "name": "Kishore Mahato",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "13626",
+        "name": "Lalit Rajbanshi",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 847068
+      }
+    ]
+  },
+  {
+    "team_name": "Karnali Yaks",
+    "squad_id": 97724,
+    "player_count": 20,
+    "players": [
+      {
+        "cricbuzz_id": null,
+        "name": "BATTERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "10424",
+        "name": "Max O'Dowd",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 844970
+      },
+      {
+        "cricbuzz_id": "8375",
+        "name": "Najibullah Zadran",
+        "role": "Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 352434
+      },
+      {
+        "cricbuzz_id": "8810",
+        "name": "Priyank Panchal",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "ALL ROUNDERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "12144",
+        "name": "Pawan Sarraf",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "8487",
+        "name": "William Bosisto",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 151571
+      },
+      {
+        "cricbuzz_id": "1464846",
+        "name": "Imran Sheikh",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1448029",
+        "name": "Unish Bikram Singh",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "20146",
+        "name": "Gulsan Jha",
+        "role": "Bowling Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 847062
+      },
+      {
+        "cricbuzz_id": "9970",
+        "name": "Sompal Kami",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 847066
+      },
+      {
+        "cricbuzz_id": "9928",
+        "name": "Mark Watt",
+        "role": "Bowling Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 845534
+      },
+      {
+        "cricbuzz_id": "12113",
+        "name": "Nandan Yadav",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 847061
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "WICKET KEEPERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "54784",
+        "name": "Deepak Dumre",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464835",
+        "name": "Arjun Gharti",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "BOWLERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "1448033",
+        "name": "Yuvraj Khatri",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm legbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464849",
+        "name": "Dipendra Rawat",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464851",
+        "name": "Bipin Sharma",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 174146
+      }
+    ]
+  },
+  {
+    "team_name": "Kathmandu Gorkhas",
+    "squad_id": 97735,
+    "player_count": 23,
+    "players": [
+      {
+        "cricbuzz_id": null,
+        "name": "BATTERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "52593",
+        "name": "Aakash Tripathi",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "12146",
+        "name": "Bhim Sharki",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "14217",
+        "name": "Rashid Khan",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1465058",
+        "name": "Pratik Shrestha",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "ALL ROUNDERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "8773",
+        "name": "Milind Kumar",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 846078
+      },
+      {
+        "cricbuzz_id": "7973",
+        "name": "Gerhard Erasmus",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 844986
+      },
+      {
+        "cricbuzz_id": "23071",
+        "name": "Mohammad Aadil Alam",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "53650",
+        "name": "Sunny Patel",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm legbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "13993",
+        "name": "Ben Charlesworth",
+        "role": "Bowling Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1448017",
+        "name": "Santosh Yadav",
+        "role": "Bowling Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "10203",
+        "name": "Karan KC",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 847053
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "WICKET KEEPERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "6653",
+        "name": "John Simpson",
+        "role": "WK-Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "10209",
+        "name": "Heinrich Klaasen",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 619866
+      },
+      {
+        "cricbuzz_id": "13276",
+        "name": "Ricardo Vasconcelos",
+        "role": "WK-Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "52617",
+        "name": "Uttam Thapa Magar",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "BOWLERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "13222",
+        "name": "Shahab Alam",
+        "role": "Bowler",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1465044",
+        "name": "Dipesh Prasad Kandel",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1465046",
+        "name": "Krish Karki",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1465066",
+        "name": "Tul Bahadur Thapa",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Left-arm wrist-spin",
+        "image_id": 174146
+      }
+    ]
+  },
+  {
+    "team_name": "Lumbini Lions",
+    "squad_id": 97746,
+    "player_count": 19,
+    "players": [
+      {
+        "cricbuzz_id": null,
+        "name": "BATTERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "14220",
+        "name": "Sundeep Jora",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 847056
+      },
+      {
+        "cricbuzz_id": "12726",
+        "name": "Dilip Nath",
+        "role": "Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "",
+        "image_id": 155405
+      },
+      {
+        "cricbuzz_id": "11050",
+        "name": "D Arcy Short",
+        "role": "Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm wrist-spin",
+        "image_id": 147852
+      },
+      {
+        "cricbuzz_id": "12859",
+        "name": "Aadil Khan",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "ALL ROUNDERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "8030",
+        "name": "Gulbadin Naib",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 845421
+      },
+      {
+        "cricbuzz_id": "12140",
+        "name": "Rohit Paudel",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 847047
+      },
+      {
+        "cricbuzz_id": "1464934",
+        "name": "Bishal Patel",
+        "role": "Bowling Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "35663",
+        "name": "Movin Subasingha",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "WICKET KEEPERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "BOWLERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "22716",
+        "name": "Sher Malla",
+        "role": "Bowler",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 847055
+      },
+      {
+        "cricbuzz_id": "22746",
+        "name": "Tilak Bhandari",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm legbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1426791",
+        "name": "Thomas Draca",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 845994
+      },
+      {
+        "cricbuzz_id": "22741",
+        "name": "Durgesh Gupta",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Left-arm fast-medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "OTHERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "1464923",
+        "name": "Sumit Maharjan",
+        "role": "",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464928",
+        "name": "Abhishesh Gautam",
+        "role": "",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      }
+    ]
+  },
+  {
+    "team_name": "Pokhara Avengers",
+    "squad_id": 97757,
+    "player_count": 20,
+    "players": [
+      {
+        "cricbuzz_id": null,
+        "name": "BATTERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "11290",
+        "name": "Kushal Bhurtel",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm legbreak",
+        "image_id": 847072
+      },
+      {
+        "cricbuzz_id": "14221",
+        "name": "Trit Raj Das",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "22706",
+        "name": "Arjun Kumal",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1456556",
+        "name": "Kiran Thagunna",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "ALL ROUNDERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "9398",
+        "name": "Raymon Reifer",
+        "role": "Batting Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm medium",
+        "image_id": 244831
+      },
+      {
+        "cricbuzz_id": "8983",
+        "name": "James Neesham",
+        "role": "Batting Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 845513
+      },
+      {
+        "cricbuzz_id": "1448009",
+        "name": "Abhisekh Tiwari",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464914",
+        "name": "Krishna Poudel",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "13779",
+        "name": "Daniel Douthwaite",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "WICKET KEEPERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "7865",
+        "name": "Adam Rossington",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 160146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "BOWLERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "14219",
+        "name": "Sagar Dhakal",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "52614",
+        "name": "Aakash Chand",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 581157
+      },
+      {
+        "cricbuzz_id": "1464882",
+        "name": "Bipin Khatri",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464893",
+        "name": "Sandeep Chettri",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464903",
+        "name": "Dinesh Kharel",
+        "role": "Bowler",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Right-arm fast",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "9349",
+        "name": "Matthew Taylor",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Left-arm fast",
+        "image_id": 174146
+      }
+    ]
+  },
+  {
+    "team_name": "Sudur Paschim Royals",
+    "squad_id": 97768,
+    "player_count": 19,
+    "players": [
+      {
+        "cricbuzz_id": null,
+        "name": "BATTERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "36307",
+        "name": "Josh Brown",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "7752",
+        "name": "Chris Lynn",
+        "role": "Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 154633
+      },
+      {
+        "cricbuzz_id": "11165",
+        "name": "Ishan Pandey",
+        "role": "Batsman",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "ALL ROUNDERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "11155",
+        "name": "Dipendra Singh Airee",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm offbreak",
+        "image_id": 848428
+      },
+      {
+        "cricbuzz_id": "9511",
+        "name": "Scott Kuggeleijn",
+        "role": "Batting Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 167343
+      },
+      {
+        "cricbuzz_id": "10126",
+        "name": "Aarif Sheikh",
+        "role": "Bowling Allrounder",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 847065
+      },
+      {
+        "cricbuzz_id": "8426",
+        "name": "Harmeet Singh",
+        "role": "Bowling Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 846066
+      },
+      {
+        "cricbuzz_id": "1448021",
+        "name": "Naren Saud",
+        "role": "Bowling Allrounder",
+        "batting_style": "Left-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "WICKET KEEPERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "9961",
+        "name": "Binod Bhandari",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 155421
+      },
+      {
+        "cricbuzz_id": "53422",
+        "name": "Dipak Bohara",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464956",
+        "name": "Tek Rawat",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464950",
+        "name": "Dipendra Thapa",
+        "role": "WK-Batsman",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": null,
+        "name": "BOWLERS",
+        "role": "",
+        "batting_style": "",
+        "bowling_style": "",
+        "image_id": ""
+      },
+      {
+        "cricbuzz_id": "14556",
+        "name": "Abinash Bohara",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "52579",
+        "name": "Hemant Dhami",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Right-arm fast-medium",
+        "image_id": 174146
+      },
+      {
+        "cricbuzz_id": "1464945",
+        "name": "Milan Bohara",
+        "role": "Bowler",
+        "batting_style": "Right-hand bat",
+        "bowling_style": "Left-arm orthodox",
+        "image_id": 174146
+      }
+    ]
+  }
+]

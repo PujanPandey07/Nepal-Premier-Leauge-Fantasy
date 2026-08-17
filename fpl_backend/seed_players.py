@@ -2,7 +2,8 @@ from datetime import datetime, timezone as dt_timezone
 from django.utils import timezone
 from core.models import Match, Cricket_Team, Tournament
 
-tournament = Tournament.objects.get(name="Nepal Premier League", season="2025")
+tournament = Tournament.objects.get(
+    name="Nepal Premier League S2", season="2025")
 
 # Cricbuzz's ALL-CAPS names -> your actual seeded Cricket_Team names
 TEAM_NAME_MAP = {
