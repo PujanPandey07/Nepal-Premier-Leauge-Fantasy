@@ -1,5 +1,5 @@
 import { useEffect, useState, useContext, useCallback } from 'react'
-import { Link, useSearchParams, useNavigate, useParams } from 'react'
+import { Link, useSearchParams, useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/navbar'
 import { TeamContext, ROLE_LIMITS } from '../context/teamcontext'
 import axiosInstance from '../utilis/axiosInstance'
@@ -27,11 +27,11 @@ export default function Players({ showAddButton = false }) {
   const [maxPrice, setMaxPrice] = useState('')
   const [cricketTeams, setCricketTeams] = useState({})
 
-  // Fetch teams lookup on mount
+  // Fetch teams lookup mapping
   useEffect(() => {
     let isMounted = true
     axiosInstance
-      .get('/api/cricket-teams/')
+      .get('/cricket-teams/') // Adjusted path if axiosInstance baseURL already includes /api
       .then((res) => {
         if (!isMounted) return
         const list = Array.isArray(res.data) ? res.data : res.data?.results || []
@@ -48,21 +48,19 @@ export default function Players({ showAddButton = false }) {
     }
   }, [])
 
-  // Unified player fetch helper using axiosInstance
-  const fetchPlayers = useCallback((endpoint = '/api/players/', queryParams = null) => {
-    let isMounted = true
+  // Unified player fetch helper
+  const fetchPlayers = useCallback((endpoint = '/players/', queryParams = null) => {
     setLoading(true)
     setError(null)
 
     let url = endpoint
-    if (queryParams) {
+    if (queryParams && queryParams.toString()) {
       url = `${endpoint}?${queryParams.toString()}`
     }
 
     axiosInstance
       .get(url)
       .then((res) => {
-        if (!isMounted) return
         const rawList = Array.isArray(res.data) ? res.data : res.data?.results || []
         const normalized = rawList.map((p) => ({
           ...p,
@@ -73,22 +71,21 @@ export default function Players({ showAddButton = false }) {
         setPrevPage(res.data?.previous || null)
       })
       .catch((err) => {
-        if (!isMounted) return
         console.error('Error fetching players:', err)
-        setError('Failed to load players list. Please try again.')
+        setError('Failed to load players list. Please verify server connection.')
       })
       .finally(() => {
-        if (isMounted) setLoading(false)
+        setLoading(false)
       })
-
-    return () => {
-      isMounted = false
-    }
   }, [])
 
-  // Debounced filter effect
+  // Debounced filter effect with context checks
   useEffect(() => {
-    if (showAddButton && !match) return
+    // If add button is active but match data isn't loaded yet, clear loading state and wait
+    if (showAddButton && !match) {
+      setLoading(false)
+      return
+    }
 
     const timer = setTimeout(() => {
       const params = new URLSearchParams()
@@ -97,11 +94,17 @@ export default function Players({ showAddButton = false }) {
       if (minPrice) params.append('min_credit_value', minPrice)
       if (maxPrice) params.append('max_credit_value', maxPrice)
 
-      if (showAddButton && match?.home_team && match?.away_team) {
-        params.append('teams', `${match.home_team},${match.away_team}`)
+      if (showAddButton && match) {
+        // Safely extract team IDs whether they are objects or raw UUID strings
+        const homeId = typeof match.home_team === 'object' ? match.home_team?.id : match.home_team
+        const awayId = typeof match.away_team === 'object' ? match.away_team?.id : match.away_team
+
+        if (homeId && awayId) {
+          params.append('teams', `${homeId},${awayId}`)
+        }
       }
 
-      fetchPlayers('/api/players/', params)
+      fetchPlayers('/players/', params)
     }, 300)
 
     return () => clearTimeout(timer)
@@ -120,12 +123,17 @@ export default function Players({ showAddButton = false }) {
     }
   }
 
-  // Parse DRF full URL to relative path before passing to axiosInstance
+  // Parse DRF full pagination URLs
   const handlePagination = (fullUrl) => {
     if (!fullUrl) return
     try {
       const parsedUrl = new URL(fullUrl)
-      fetchPlayers(parsedUrl.pathname + parsedUrl.search)
+      let path = parsedUrl.pathname + parsedUrl.search
+      // Clean leading /api if axiosInstance baseURL already includes /api
+      if (path.startsWith('/api/')) {
+        path = path.replace('/api', '')
+      }
+      fetchPlayers(path)
     } catch {
       fetchPlayers(fullUrl)
     }
