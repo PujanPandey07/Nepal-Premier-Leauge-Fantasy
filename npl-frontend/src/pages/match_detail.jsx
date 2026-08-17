@@ -1,9 +1,10 @@
-// MatchDetail.jsx
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import Navbar from '../components/navbar'
 import axiosInstance from '../utilis/axiosInstance'
 import { fetchAllPages } from '../utilis/fetchAllPages'
+
+const THIRTY_MINUTES_MS = 30 * 60 * 1000
 
 function MatchDetail() {
   const { matchId } = useParams()
@@ -14,44 +15,59 @@ function MatchDetail() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    let isMounted = true
+
     Promise.all([
       axiosInstance.get(`/api/matches/${matchId}/`),
       axiosInstance.get('/api/cricket-teams/'),
       fetchAllPages('/api/matches/?ordering=match_date'),
     ])
       .then(([matchRes, teamsRes, allMatches]) => {
+        if (!isMounted) return
+
         setMatch(matchRes.data)
         const list = teamsRes.data.results || teamsRes.data
         const map = {}
-        list.forEach(t => { map[t.id] = t.name })
+        list.forEach((t) => {
+          map[t.id] = t.name
+        })
         setTeams(map)
 
-        // Calculate isBuildable independently (works from any page or direct URL)
-        const now = new Date()
-        const isOpen = (m) => now < new Date(m.match_date) - 30 * 60 * 1000
+        // Calculate buildable status with explicit timestamp comparison
+        const nowMs = Date.now()
+        const isOpen = (m) => nowMs < new Date(m.match_date).getTime() - THIRTY_MINUTES_MS
         const openSorted = allMatches.filter(isOpen)
+
         if (openSorted.length > 0) {
           const earliestDay = new Date(openSorted[0].match_date).toDateString()
           const buildableIds = new Set(
             openSorted
-              .filter(m => new Date(m.match_date).toDateString() === earliestDay)
-              .map(m => String(m.id))
+              .filter((m) => new Date(m.match_date).toDateString() === earliestDay)
+              .map((m) => String(m.id))
           )
           setIsBuildable(buildableIds.has(String(matchId)))
         }
       })
-      .catch(err => {
+      .catch((err) => {
+        if (!isMounted) return
         console.error('Error loading match:', err)
         setError('Could not load this match')
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (isMounted) setLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
   }, [matchId])
 
   if (loading) return <p className="p-8">Loading...</p>
   if (error) return <p className="p-8 text-red-500">{error}</p>
   if (!match) return <p className="p-8">Match not found.</p>
 
-  const deadlinePassed = new Date() >= new Date(match.match_date) - 30 * 60 * 1000
+  const matchTimeMs = new Date(match.match_date).getTime()
+  const deadlinePassed = Date.now() >= matchTimeMs - THIRTY_MINUTES_MS
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -92,7 +108,6 @@ function MatchDetail() {
             )}
 
             {isBuildable ? (
-              // Only the closest upcoming match gets this button
               <Link
                 to={`/build-team/${match.id}`}
                 className="inline-block bg-green-600 text-white px-6 py-2 rounded font-semibold hover:bg-green-700"
@@ -100,7 +115,6 @@ function MatchDetail() {
                 Build Team
               </Link>
             ) : deadlinePassed ? (
-              // Past match — link to points for THIS specific match
               <Link
                 to="/view-points"
                 state={{ matchId: match.id }}
@@ -109,7 +123,6 @@ function MatchDetail() {
                 View points for this match →
               </Link>
             ) : (
-              // Future match — info only
               <p className="text-gray-400 text-sm italic">
                 Team selection not open yet for this match.
               </p>

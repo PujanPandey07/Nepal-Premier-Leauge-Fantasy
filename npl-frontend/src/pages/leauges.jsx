@@ -1,541 +1,238 @@
+import React, { useState, useEffect, useMemo } from 'react';
 
-// Leagues.jsx
-import { useEffect, useState } from "react";
-import Navbar from "../components/navbar";
-import { Link } from "react-router-dom";
-import axiosInstance from '../utilis/axiosInstance'
-import { useAuth } from '../context/AuthContext'
+// ==========================================
+// SUB-COMPONENTS (Defined outside to prevent DOM re-mounting)
+// ==========================================
 
-function Leagues() {
-  const { isLoggedIn, userId } = useAuth()
-  const [allLeagues, setAllLeagues] = useState([])
-  const [myLeagues, setMyLeagues] = useState([])
-  const [members, setMembers] = useState([])
-  const [fantasyTeamMap, setFantasyTeamMap] = useState({})
-  const [userData, setUserData] = useState({})
-  const [activeTab, setActiveTab] = useState('all')
-  const [nextPage, setNextPage] = useState(null)
-  const [prevPage, setPrevPage] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [tournaments, setTournaments] = useState([])
-
-  // ── Leaderboard state ──────────────────────────────
-  const [leaderboard, setLeaderboard] = useState([])
-  const [leaderboardTournament, setLeaderboardTournament] = useState('')
-  const [leaderboardLoading, setLeaderboardLoading] = useState(false)
-  const [leaderboardNext, setLeaderboardNext] = useState(null)
-  const [leaderboardPrev, setLeaderboardPrev] = useState(null)
-
-  const [form, setForm] = useState({
-    name: '',
-    tournament: '',
-    entry_fee: '',
-    prize_pool: '',
-    max_members: '',
-    is_public: true,
-  })
-  const [creating, setCreating] = useState(false)
-  const [createError, setCreateError] = useState(null)
-
-  useEffect(() => {
-    Promise.all([
-      axiosInstance.get('/api/leagues/'),
-      isLoggedIn
-        ? axiosInstance.get('/api/league-members/').catch(() => ({ data: { results: [] } }))
-        : Promise.resolve({ data: { results: [] } }),
-      isLoggedIn
-        ? axiosInstance.get('/api/tournaments/')
-        : Promise.resolve({ data: { results: [] } }),
-      isLoggedIn
-        ? axiosInstance.get('/api/fantasy-teams/').catch(() => ({ data: { results: [] } }))
-        : Promise.resolve({ data: { results: [] } }),
-      isLoggedIn
-        ? axiosInstance.get('/api/users/me/').catch(() => ({ data: {} }))
-        : Promise.resolve({ data: {} }),
-    ])
-      .then(([leaguesRes, membersRes, tournamentsRes, fantasyTeamsRes, meRes]) => {
-        const leagues = leaguesRes.data.results || leaguesRes.data
-        setAllLeagues(leagues)
-        setNextPage(leaguesRes.data.next)
-        setPrevPage(leaguesRes.data.previous)
-
-        const tourneyList = tournamentsRes.data.results || tournamentsRes.data || []
-        setTournaments(tourneyList)
-
-        const membersList = membersRes.data.results || membersRes.data || []
-        setMembers(membersList)
-        const myLeagueIds = membersList.map(m => m.league)
-
-        const fantasyTeams = fantasyTeamsRes.data.results || fantasyTeamsRes.data || []
-        const me = meRes.data || {}
-        const teamMap = {}
-        fantasyTeams.forEach(t => { teamMap[t.id] = t })
-
-        const mine = leagues.filter(l =>
-          myLeagueIds.includes(l.id) || l.created_by === userId
-        )
-        setMyLeagues(mine)
-        setFantasyTeamMap(teamMap)
-        setUserData(me)
-      })
-      .catch(error => console.error('Error fetching leagues:', error))
-      .finally(() => setLoading(false))
-  }, [isLoggedIn, userId])
-
-  // ── Fetch leaderboard when tab or tournament changes ──
-  useEffect(() => {
-    if (activeTab !== 'leaderboard') return
-    if (!leaderboardTournament) {
-      setLeaderboard([])
-      return
-    }
-
-    setLeaderboardLoading(true)
-    axiosInstance.get(`/api/leaderboard/?tournament=${leaderboardTournament}`)
-      .then(res => {
-        setLeaderboard(res.data.results || [])
-        setLeaderboardNext(res.data.next)
-        setLeaderboardPrev(res.data.previous)
-      })
-      .catch(err => {
-        console.error('Error fetching leaderboard:', err)
-        setLeaderboard([])
-      })
-      .finally(() => setLeaderboardLoading(false))
-  }, [activeTab, leaderboardTournament])
-
-  const goToPage = (url) => {
-    if (!url) return
-    axiosInstance.get(url)
-      .then(res => {
-        setAllLeagues(res.data.results || res.data)
-        setNextPage(res.data.next)
-        setPrevPage(res.data.previous)
-      })
-      .catch(error => console.error('Error fetching leagues:', error))
+const LeagueTable = ({ leagues, userId, onView, onJoin, joiningId }) => {
+  if (!leagues || leagues.length === 0) {
+    return <div className="text-gray-500 py-4">No leagues found.</div>;
   }
-
-  const goToLeaderboardPage = (url) => {
-    if (!url) return
-    setLeaderboardLoading(true)
-    axiosInstance.get(url)
-      .then(res => {
-        setLeaderboard(res.data.results || [])
-        setLeaderboardNext(res.data.next)
-        setLeaderboardPrev(res.data.previous)
-      })
-      .catch(err => console.error('Error fetching leaderboard:', err))
-      .finally(() => setLeaderboardLoading(false))
-  }
-
-  const handleFormChange = (e) => {
-    const { name, value, type, checked } = e.target
-    setForm(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }))
-  }
-
-  const handleCreate = async () => {
-    setCreating(true)
-    setCreateError(null)
-
-    if (!form.name || !form.tournament || !form.max_members) {
-      setCreateError('Name, tournament and max members are required.')
-      setCreating(false)
-      return
-    }
-
-    try {
-      const res = await axiosInstance.post(
-        '/api/leagues/',
-        {
-          name: form.name,
-          tournament: form.tournament,
-          entry_fee: form.entry_fee || 0,
-          prize_pool: form.prize_pool || 0,
-          max_members: parseInt(form.max_members),
-          is_public: form.is_public,
-          status: 'open',
-          type: form.is_public ? 'public' : 'private',
-        }
-      )
-
-      setAllLeagues(prev => [res.data, ...prev])
-      setMyLeagues(prev => [res.data, ...prev])
-
-      setForm({
-        name: '',
-        tournament: '',
-        entry_fee: '',
-        prize_pool: '',
-        max_members: '',
-        is_public: true,
-      })
-      setShowCreateModal(false)
-    } catch (err) {
-      const errData = err.response?.data
-      setCreateError(
-        typeof errData === 'object'
-          ? Object.values(errData)[0]
-          : 'Failed to create league'
-      )
-    } finally {
-      setCreating(false)
-    }
-  }
-
-
-  const LeagueTable = ({ leagues }) => (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="grid grid-cols-6 bg-gray-800 text-white text-sm font-semibold p-4">
-        <span>League / Your Team</span>
-        <span>Entry Fee</span>
-        <span>Prize Pool</span>
-        <span>Status</span>
-        <span>Members</span>
-        <span>Your Points</span>
-      </div>
-      {leagues.length === 0 ? (
-        <p className="text-gray-500 text-sm p-4">No leagues found.</p>
-      ) : (
-        leagues.map(league => (
-          <Link
-            key={league.id}
-            to={`/leagues/${league.id}`}
-            className="grid grid-cols-6 items-center p-4 border-b border-gray-200 hover:bg-gray-50 gap-4"
-          >
-            <div className="truncate">
-              <div className="font-semibold text-gray-800 truncate">{league.name}</div>
-              <div className="text-xs text-gray-500">{league.tournament?.name || ''}</div>
-            </div>
-
-            <div className="text-gray-600">{league.entry_fee}</div>
-            <div className="text-gray-600">{league.prize_pool}</div>
-            <div className={`font-medium ${league.status === 'open' ? 'text-green-600' : 'text-gray-500'}`}>
-              {league.status}
-            </div>
-            <div className="text-blue-600 font-bold">
-              {league.member_count}/{league.max_members}
-            </div>
-            <div className="text-gray-800 font-semibold">
-              {(() => {
-                const member = members.find(m => m.league === league.id && (m.user === userId || league.created_by === userId))
-                return member ? (member.points || 0) : '-'
-              })()}
-            </div>
-          </Link>
-        ))
-      )}
-    </div>
-  )
-
-  const LeaderboardTable = () => (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="grid grid-cols-5 bg-gray-800 text-white text-sm font-semibold p-4">
-        <span>Rank</span>
-        <span>Player</span>
-        <span className="text-right">Teams Played</span>
-        <span className="text-right">Total Points</span>
-        <span className="text-right">Status</span>
-      </div>
-      {leaderboardLoading ? (
-        <p className="text-gray-500 text-sm p-4">Loading leaderboard...</p>
-      ) : leaderboard.length === 0 ? (
-        <p className="text-gray-500 text-sm p-4">
-          {leaderboardTournament ? 'No players found for this season.' : 'Select a tournament to view the leaderboard.'}
-        </p>
-      ) : (
-        leaderboard.map((player) => (
-          <div
-            key={player.id}
-            className={`grid grid-cols-5 items-center p-4 border-b border-gray-200 gap-4 ${
-              player.id === userId ? 'bg-blue-50' : 'hover:bg-gray-50'
-            }`}
-          >
-            <div className="font-bold text-lg">
-              {player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : player.rank === 3 ? '🥉' : player.rank}
-            </div>
-            <div>
-              <div className="font-semibold text-gray-800">{player.name}</div>
-              <div className="text-xs text-gray-500">{player.email}</div>
-            </div>
-            <div className="text-right text-gray-600">{player.teams_played}</div>
-            <div className="text-right font-mono font-bold text-gray-800">{player.total_fantasy_points}</div>
-            <div className="text-right">
-              {player.id === userId ? (
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">You</span>
-              ) : (
-                <span className="text-xs text-gray-400">—</span>
-              )}
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  )
-
-  if (loading) return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <p className="p-8">Loading...</p>
-    </div>
-  )
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <Navbar />
+    <div className="overflow-x-auto">
+      <table className="w-full text-left border-collapse min-w-[600px]">
+        <thead>
+          <tr className="border-b bg-gray-50 text-xs font-semibold text-gray-600 uppercase">
+            <th className="py-3 px-4">League Name</th>
+            <th className="py-3 px-4">Your Points</th>
+            <th className="py-3 px-4 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200 text-sm">
+          {leagues.map((league) => {
+            // String comparison avoids type mismatches (e.g. number vs string IDs)
+            const currentUserMember = league.members?.find(
+              (m) => String(m.user) === String(userId)
+            );
+            const isMember = Boolean(currentUserMember);
+            const points = currentUserMember ? currentUserMember.points : 0;
 
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">NPL Leagues</h1>
-        {isLoggedIn && (
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 text-sm"
-          >
-            + Create League
-          </button>
-        )}
-      </div>
+            return (
+              <tr key={league.id} className="hover:bg-gray-50 transition-colors">
+                <td className="py-3 px-4 font-medium">{league.name}</td>
+                <td className="py-3 px-4">{isMember ? `${points} pts` : '-'}</td>
+                <td className="py-3 px-4 text-right space-x-2">
+                  <button
+                    onClick={() => onView && onView(league)}
+                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs transition-colors"
+                  >
+                    View
+                  </button>
+                  {!isMember && onJoin && (
+                    <button
+                      onClick={() => onJoin(league.id)}
+                      disabled={joiningId === league.id}
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs disabled:opacity-50 transition-colors"
+                    >
+                      {joiningId === league.id ? 'Joining...' : 'Join'}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
-      {/* Tab toggle */}
-      <div className="flex gap-2 mb-6">
+const LeaderboardTable = ({ entries, loading }) => {
+  if (loading) {
+    return <div className="py-4 text-gray-500">Loading leaderboard...</div>;
+  }
+
+  if (!entries || entries.length === 0) {
+    return <div className="py-4 text-gray-500">No leaderboard entries available.</div>;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left border-collapse min-w-[600px]">
+        <thead>
+          <tr className="border-b bg-gray-50 text-xs font-semibold text-gray-600 uppercase">
+            <th className="py-3 px-4">Rank</th>
+            <th className="py-3 px-4 font-medium">Participant</th>
+            <th className="py-3 px-4 text-right">Points</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200 text-sm">
+          {entries.map((entry, index) => (
+            <tr key={entry.id || index} className="hover:bg-gray-50 transition-colors">
+              <td className="py-3 px-4 font-bold text-gray-700">#{index + 1}</td>
+              <td className="py-3 px-4 font-medium">{entry.username || entry.name}</td>
+              <td className="py-3 px-4 text-right font-semibold">{entry.points} pts</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// ==========================================
+// MAIN LEAGUES COMPONENT
+// ==========================================
+
+export default function Leagues({ userId }) {
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'my' | 'leaderboard'
+  const [allLeagues, setAllLeagues] = useState([]);
+  const [tournaments, setTournaments] = useState([]);
+  const [selectedTournament, setSelectedTournament] = useState('');
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [joiningId, setJoiningId] = useState(null);
+
+  // Derived State: Memoized filtering keeps "My Leagues" updated automatically
+  const myLeagues = useMemo(() => {
+    return allLeagues.filter((league) =>
+      league.members?.some((m) => String(m.user) === String(userId))
+    );
+  }, [allLeagues, userId]);
+
+  // Initial Fetching (Connect to your existing API logic)
+  useEffect(() => {
+    // Example API fetch triggers:
+    // fetchLeagues().then(setAllLeagues);
+    // fetchTournaments().then(setTournaments);
+  }, []);
+
+  // Auto-select the first available tournament when tournaments load
+  useEffect(() => {
+    if (tournaments.length > 0 && !selectedTournament) {
+      setSelectedTournament(tournaments[0].id);
+    }
+  }, [tournaments, selectedTournament]);
+
+  // Fetch leaderboard entries when the selected tournament changes or tab becomes active
+  useEffect(() => {
+    if (!selectedTournament || activeTab !== 'leaderboard') return;
+
+    setLoadingLeaderboard(true);
+    // Example Leaderboard Fetch:
+    // fetchLeaderboardData(selectedTournament)
+    //   .then((data) => setLeaderboard(data))
+    //   .finally(() => setLoadingLeaderboard(false));
+  }, [selectedTournament, activeTab]);
+
+  const handleJoinLeague = async (leagueId) => {
+    setJoiningId(leagueId);
+    try {
+      // Connect your join API logic here
+      // await joinLeagueApi(leagueId);
+    } catch (err) {
+      console.error('Failed to join league:', err);
+    } finally {
+      setJoiningId(null);
+    }
+  };
+
+  const handleViewLeague = (league) => {
+    // Connect your view/modal handler here
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-sm border border-gray-100">
+      {/* Tab Navigation */}
+      <div className="flex border-b border-gray-200 mb-6 gap-6">
         <button
           onClick={() => setActiveTab('all')}
-          className={`px-4 py-2 rounded-lg font-medium text-sm ${
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'all'
-              ? 'bg-gray-800 text-white'
-              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
           All Leagues
         </button>
-        {isLoggedIn && (
-          <button
-            onClick={() => setActiveTab('my')}
-            className={`px-4 py-2 rounded-lg font-medium text-sm ${
-              activeTab === 'my'
-                ? 'bg-gray-800 text-white'
-                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            My Leagues
-          </button>
-        )}
         <button
-          onClick={() => setActiveTab('leaderboard')}
-          className={`px-4 py-2 rounded-lg font-medium text-sm ${
-            activeTab === 'leaderboard'
-              ? 'bg-gray-800 text-white'
-              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+          onClick={() => setActiveTab('my')}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === 'my'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          🏆 Leaderboard
+          My Leagues ({myLeagues.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('leaderboard')}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === 'leaderboard'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Leaderboards
         </button>
       </div>
 
-      {/* ── Leaderboard Tab ────────────────────────────── */}
+      {/* Active Tab View */}
+      {activeTab === 'all' && (
+        <LeagueTable
+          leagues={allLeagues}
+          userId={userId}
+          onView={handleViewLeague}
+          onJoin={handleJoinLeague}
+          joiningId={joiningId}
+        />
+      )}
+
+      {activeTab === 'my' && (
+        <LeagueTable
+          leagues={myLeagues}
+          userId={userId}
+          onView={handleViewLeague}
+          onJoin={handleJoinLeague}
+          joiningId={joiningId}
+        />
+      )}
+
       {activeTab === 'leaderboard' && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">Select Season:</label>
+            <label htmlFor="tournament-select" className="text-sm font-medium text-gray-700">
+              Select Tournament:
+            </label>
             <select
-              value={leaderboardTournament}
-              onChange={(e) => setLeaderboardTournament(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+              id="tournament-select"
+              value={selectedTournament}
+              onChange={(e) => setSelectedTournament(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">— Choose a tournament —</option>
-              {tournaments.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+              {tournaments.length === 0 && <option value="">No tournaments found</option>}
+              {tournaments.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
               ))}
             </select>
           </div>
 
-          <LeaderboardTable />
-
-          {(leaderboardNext || leaderboardPrev) && (
-            <div className="flex justify-between mt-4">
-              <button
-                disabled={!leaderboardPrev}
-                onClick={() => goToLeaderboardPage(leaderboardPrev)}
-                className="disabled:opacity-30 text-sm bg-white border border-gray-300 px-4 py-2 rounded hover:bg-gray-50"
-              >
-                ← Previous
-              </button>
-              <button
-                disabled={!leaderboardNext}
-                onClick={() => goToLeaderboardPage(leaderboardNext)}
-                className="disabled:opacity-30 text-sm bg-white border border-gray-300 px-4 py-2 rounded hover:bg-gray-50"
-              >
-                Next →
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Leagues Tabs ───────────────────────────────── */}
-      {activeTab !== 'leaderboard' && (
-        <>
-          <LeagueTable leagues={activeTab === 'all' ? allLeagues : myLeagues} />
-
-          {activeTab === 'all' && (
-            <div className="flex justify-between mt-4">
-              <button
-                disabled={!prevPage}
-                onClick={() => goToPage(prevPage)}
-                className="disabled:opacity-30"
-              >
-                Previous
-              </button>
-              <button
-                disabled={!nextPage}
-                onClick={() => goToPage(nextPage)}
-                className="disabled:opacity-30"
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Create League Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Create League</h2>
-              <button
-                onClick={() => {
-                  setShowCreateModal(false)
-                  setCreateError(null)
-                }}
-                className="text-gray-400 hover:text-gray-600 text-xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            {createError && (
-              <p className="text-red-500 text-sm mb-4">{createError}</p>
-            )}
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-gray-700">League Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={form.name}
-                  onChange={handleFormChange}
-                  placeholder="e.g. Friends League"
-                  className="mt-1 border border-gray-300 rounded px-3 py-2 w-full text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700">Tournament *</label>
-                <select
-                  name="tournament"
-                  value={form.tournament}
-                  onChange={handleFormChange}
-                  className="mt-1 border border-gray-300 rounded px-3 py-2 w-full text-sm"
-                >
-                  <option value="">Select tournament</option>
-                  {tournaments.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Entry Fee</label>
-                  <input
-                    type="number"
-                    name="entry_fee"
-                    value={form.entry_fee}
-                    onChange={handleFormChange}
-                    placeholder="0"
-                    min="0"
-                    className="mt-1 border border-gray-300 rounded px-3 py-2 w-full text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Prize Pool</label>
-                  <input
-                    type="number"
-                    name="prize_pool"
-                    value={form.prize_pool}
-                    onChange={handleFormChange}
-                    placeholder="0"
-                    min="0"
-                    className="mt-1 border border-gray-300 rounded px-3 py-2 w-full text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700">Max Members *</label>
-                <input
-                  type="number"
-                  name="max_members"
-                  value={form.max_members}
-                  onChange={handleFormChange}
-                  placeholder="e.g. 20"
-                  min="2"
-                  className="mt-1 border border-gray-300 rounded px-3 py-2 w-full text-sm"
-                />
-              </div>
-
-              {/* Public/Private toggle */}
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Public League</p>
-                  <p className="text-xs text-gray-500">
-                    {form.is_public
-                      ? 'Anyone can join with one click'
-                      : 'Members join via invite code only'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setForm(prev => ({ ...prev, is_public: !prev.is_public }))}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${
-                    form.is_public ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
-                >
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                    form.is_public ? 'translate-x-7' : 'translate-x-1'
-                  }`} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowCreateModal(false)
-                  setCreateError(null)
-                }}
-                className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={creating}
-                className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold text-sm hover:bg-green-700 disabled:opacity-50"
-              >
-                {creating ? 'Creating...' : 'Create League'}
-              </button>
-            </div>
-          </div>
+          <LeaderboardTable entries={leaderboard} loading={loadingLeaderboard} />
         </div>
       )}
     </div>
-  )
+  );
 }
-
-export default Leagues;

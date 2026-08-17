@@ -1,108 +1,146 @@
-// MockPayment.jsx
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axiosInstance from '../utilis/axiosInstance'
 
 export default function MockPayment() {
-    const navigate = useNavigate()
-    const params = new URLSearchParams(window.location.search)
-    const pidx = params.get('pidx')
-    // amount comes in paisa — convert back to NPR for display
-    const amountNPR = Number(params.get('amount')) / 100
-    const [paying, setPaying] = useState(false)
-    const [failed, setFailed] = useState(false)
+  const navigate = useNavigate()
+  const params = new URLSearchParams(window.location.search)
+  
+  const pidx = params.get('pidx')
+  const rawAmount = params.get('amount')
+  const amountNPR = rawAmount ? Number(rawAmount) / 100 : 0
 
-   const handlePay = () => {
-    setPaying(true)
-    // Just redirect the browser to the verify URL —
-    // the backend will process it and redirect to wallet?status=success
-    window.location.href = `${API_BASE}/api/payments/verify/?pidx=${pidx}&status=Completed`
-}
+  const [paying, setPaying] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const [selectedMethod, setSelectedMethod] = useState(0)
 
-    const handleCancel = () => {
-        navigate('/wallet?status=cancelled')
+  // Dynamically pull base API URL from axiosInstance defaults
+  const apiBaseUrl = axiosInstance.defaults.baseURL || ''
+
+  const handlePay = (status = 'Completed') => {
+    if (!pidx) {
+      setFailed(true)
+      return
     }
 
+    setPaying(true)
+    const verifyEndpoint = `/api/payments/verify/?pidx=${encodeURIComponent(pidx)}&status=${encodeURIComponent(status)}`
+    const fullUrl = apiBaseUrl
+      ? `${apiBaseUrl.replace(/\/$/, '')}${verifyEndpoint}`
+      : verifyEndpoint
+
+    window.location.href = fullUrl
+  }
+
+  const handleCancel = () => {
+    navigate('/wallet?status=cancelled')
+  }
+
+  // Parameter validation safeguard
+  if (!pidx || isNaN(amountNPR) || amountNPR <= 0) {
     return (
-        <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-            <div className="bg-white rounded-2xl shadow-lg w-full max-w-sm overflow-hidden">
-
-                {/* Khalti-style purple header */}
-                <div className="bg-purple-600 px-6 py-5 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                        <span className="text-purple-600 font-black text-lg">K</span>
-                    </div>
-                    <div>
-                        <p className="text-white font-bold text-lg">Khalti</p>
-                        <p className="text-purple-200 text-xs">Digital Wallet & Payment</p>
-                    </div>
-                </div>
-
-                <div className="p-6">
-                    {/* Merchant info */}
-                    <div className="bg-gray-50 rounded-xl p-4 mb-5">
-                        <p className="text-xs text-gray-500 mb-1">Paying to</p>
-                        <p className="font-semibold text-gray-800">NPL Fantasy Cricket</p>
-                        <p className="text-xs text-gray-400 mt-0.5">Wallet Top Up</p>
-                    </div>
-
-                    {/* Amount */}
-                    <div className="text-center mb-6">
-                        <p className="text-xs text-gray-500 mb-1">Total Amount</p>
-                        <p className="text-3xl font-bold text-gray-800">
-                            NPR {amountNPR.toFixed(2)}
-                        </p>
-                    </div>
-
-                    {/* Mock bank/wallet options */}
-                    <div className="space-y-2 mb-6">
-                        <p className="text-xs text-gray-500 font-medium mb-2">Pay via</p>
-                        {['Khalti Wallet', 'eBanking', 'Mobile Banking'].map((method, i) => (
-                            <div
-                                key={i}
-                                className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer ${
-                                    i === 0 ? 'border-purple-500 bg-purple-50' : 'border-gray-200'
-                                }`}
-                            >
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                    i === 0 ? 'border-purple-500' : 'border-gray-300'
-                                }`}>
-                                    {i === 0 && (
-                                        <div className="w-2 h-2 rounded-full bg-purple-500" />
-                                    )}
-                                </div>
-                                <p className="text-sm text-gray-700">{method}</p>
-                            </div>
-                        ))}
-                    </div>
-
-                    {failed && (
-                        <p className="text-red-500 text-sm text-center mb-3">
-                            Payment failed. Please try again.
-                        </p>
-                    )}
-
-                    {/* Pay button */}
-                    <button
-                        onClick={handlePay}
-                        disabled={paying}
-                        className="w-full bg-purple-600 text-white py-3 rounded-xl font-semibold hover:bg-purple-700 disabled:opacity-50 mb-3"
-                    >
-                        {paying ? 'Processing...' : `Pay NPR ${amountNPR.toFixed(2)}`}
-                    </button>
-
-                    <button
-                        onClick={handleCancel}
-                        className="w-full border border-gray-300 text-gray-600 py-3 rounded-xl font-medium hover:bg-gray-50 text-sm"
-                    >
-                        Cancel
-                    </button>
-
-                    <p className="text-center text-xs text-gray-400 mt-4">
-                        🔒 This is a simulated payment page for demo purposes
-                    </p>
-                </div>
-            </div>
+      <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+        <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
+          <p className="mb-1 font-semibold text-red-600">Invalid Payment Parameters</p>
+          <p className="mb-5 text-xs text-gray-500">
+            Missing or invalid transaction credentials (pidx/amount).
+          </p>
+          <button
+            onClick={handleCancel}
+            className="w-full rounded-xl bg-gray-800 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-900"
+          >
+            Return to Wallet
+          </button>
         </div>
+      </div>
     )
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-lg">
+        {/* Khalti header */}
+        <div className="flex items-center gap-3 bg-purple-600 px-6 py-5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm">
+            <span className="text-lg font-black text-purple-600">K</span>
+          </div>
+          <div>
+            <p className="text-lg font-bold leading-tight text-white">Khalti</p>
+            <p className="text-xs text-purple-200">Digital Wallet & Payment</p>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {/* Merchant info */}
+          <div className="mb-5 rounded-xl border border-gray-100 bg-gray-50 p-4">
+            <p className="mb-0.5 text-xs text-gray-500">Paying to</p>
+            <p className="font-semibold text-gray-800">NPL Fantasy Cricket</p>
+            <p className="mt-0.5 text-xs text-gray-400">Wallet Top Up</p>
+          </div>
+
+          {/* Amount */}
+          <div className="mb-6 text-center">
+            <p className="mb-1 text-xs text-gray-500">Total Amount</p>
+            <p className="text-3xl font-bold text-gray-800">
+              NPR {amountNPR.toFixed(2)}
+            </p>
+          </div>
+
+          {/* Payment options */}
+          <div className="mb-6 space-y-2">
+            <p className="mb-2 text-xs font-medium text-gray-500">Pay via</p>
+            {['Khalti Wallet', 'eBanking', 'Mobile Banking'].map((method, i) => (
+              <div
+                key={method}
+                onClick={() => setSelectedMethod(i)}
+                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                  selectedMethod === i
+                    ? 'border-purple-500 bg-purple-50/50'
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <div
+                  className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                    selectedMethod === i ? 'border-purple-500' : 'border-gray-300'
+                  }`}
+                >
+                  {selectedMethod === i && (
+                    <div className="h-2 w-2 rounded-full bg-purple-500" />
+                  )}
+                </div>
+                <p className="text-sm font-medium text-gray-700">{method}</p>
+              </div>
+            ))}
+          </div>
+
+          {failed && (
+            <p className="mb-3 text-center text-xs text-red-500">
+              Payment verification failed. Please try again or cancel.
+            </p>
+          )}
+
+          {/* Action buttons */}
+          <button
+            onClick={() => handlePay('Completed')}
+            disabled={paying}
+            className="mb-3 w-full rounded-xl bg-purple-600 py-3 font-semibold text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
+          >
+            {paying ? 'Processing...' : `Pay NPR ${amountNPR.toFixed(2)}`}
+          </button>
+
+          <button
+            onClick={handleCancel}
+            disabled={paying}
+            className="w-full rounded-xl border border-gray-300 py-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+
+          <p className="mt-4 text-center text-xs text-gray-400">
+            🔒 Simulated payment environment for testing
+          </p>
+        </div>
+      </div>
+    </div>
+  )
 }

@@ -1,4 +1,3 @@
-// Wallet.jsx
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import axiosInstance from '../utilis/axiosInstance'
@@ -68,123 +67,131 @@ export default function Wallet() {
     if (loading) return (
         <div className="min-h-screen bg-gray-50">
             <Navbar />
-            <p className="p-8">Loading...</p>
+            <div className="flex h-[60vh] items-center justify-center p-4">
+                <div className="flex items-center gap-3 text-slate-500 font-medium text-xs sm:text-sm">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-purple-600 border-t-transparent" />
+                    Loading wallet data...
+                </div>
+            </div>
         </div>
     )
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 overflow-x-hidden">
             <Navbar />
-            <div className="max-w-2xl mx-auto p-8">
-                <h1 className="text-2xl font-bold mb-6">My Wallet</h1>
+            <div className="max-w-2xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
+                <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-gray-900">My Wallet</h1>
 
                 {/* Payment status messages — shown after redirect from mock Khalti */}
                 {paymentStatus === 'success' && (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 text-green-700 font-medium">
-                        ✓ Payment successful! Your wallet has been topped up.
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-3.5 sm:p-4 mb-4 text-xs sm:text-sm text-green-700 font-medium flex items-center gap-2">
+                        <span>✓</span> Payment successful! Your wallet has been topped up.
                     </div>
                 )}
                 {paymentStatus === 'failed' && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-red-700 font-medium">
-                        ✗ Payment failed. Please try again.
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 sm:p-4 mb-4 text-xs sm:text-sm text-red-700 font-medium flex items-center gap-2">
+                        <span>✕</span> Payment failed. Please try again.
                     </div>
                 )}
                 {paymentStatus === 'cancelled' && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4 text-yellow-700 font-medium">
-                        Payment cancelled.
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3.5 sm:p-4 mb-4 text-xs sm:text-sm text-yellow-700 font-medium flex items-center gap-2">
+                        <span>!</span> Payment cancelled.
                     </div>
                 )}
 
                 {/* Balance card */}
-                <div className="bg-slate-900 text-white rounded-xl p-6 mb-6">
-                    <p className="text-sm text-gray-400 mb-1">Current Balance</p>
-                    <p className="text-4xl font-bold">
-                        NPR {Number(balance).toFixed(2)}
+                <div className="bg-slate-900 text-white rounded-2xl p-5 sm:p-6 mb-5 sm:mb-6 shadow-md border border-slate-800">
+                    <p className="text-xs sm:text-sm text-gray-400 mb-1 font-medium uppercase tracking-wider">Current Balance</p>
+                    <p className="text-2xl sm:text-4xl font-black text-emerald-400 tracking-tight">
+                        NPR {Number(balance || 0).toFixed(2)}
                     </p>
                 </div>
 
                 {/* Top up section */}
-                <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-                    <h2 className="font-semibold mb-3">Top Up Wallet</h2>
+                <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-5 mb-5 sm:mb-6 shadow-sm">
+                    <h2 className="font-bold text-sm sm:text-base text-gray-800 mb-3">Top Up Wallet</h2>
                     {error && (
-                        <p className="text-red-500 text-sm mb-3">{error}</p>
+                        <p className="text-red-500 text-xs sm:text-sm mb-3 font-medium bg-red-50 p-2.5 rounded-lg border border-red-100">{error}</p>
                     )}
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
                         <input
                             type="number"
                             placeholder="Enter amount (NPR)"
                             value={amount}
                             onChange={e => setAmount(e.target.value)}
                             min="1"
-                            className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="flex-1 border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
                         />
                         <button
                             onClick={handleTopUp}
                             disabled={paying}
-                            className="bg-purple-600 text-white px-5 py-2 rounded font-semibold text-sm hover:bg-purple-700 disabled:opacity-50"
+                            className="bg-purple-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm hover:bg-purple-700 disabled:opacity-50 transition-colors shadow-sm whitespace-nowrap active:scale-[0.98]"
                         >
                             {paying ? 'Redirecting...' : 'Pay with Khalti'}
                         </button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">
+                    <p className="text-[11px] sm:text-xs text-gray-400 mt-2.5">
                         You will be redirected to Khalti to complete the payment.
                     </p>
                 </div>
 
                 {/* Transaction history */}
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="p-4 border-b border-gray-100">
-                        <h2 className="font-semibold">Transaction History</h2>
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                    <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+                        <h2 className="font-bold text-sm sm:text-base text-gray-800">Transaction History</h2>
                     </div>
 
                     {transactions.length === 0 ? (
-                        <p className="text-gray-500 text-sm p-4">No transactions yet.</p>
+                        <p className="text-gray-500 text-xs sm:text-sm p-4 sm:p-6 text-center">No transactions yet.</p>
                     ) : (
-                        transactions.map(tx => (
-                            <div
-                                key={tx.id}
-                                className="flex items-center justify-between p-4 border-b border-gray-100 last:border-0"
-                            >
-                                <div>
-                                    <p className="text-sm font-medium capitalize">
-                                        {tx.type === 'credit' ? '+ Top Up' : '- League Entry'}
-                                    </p>
-                                    <p className="text-xs text-gray-400 mt-0.5">
-                                        {tx.payment_method} · {new Date(tx.created_at).toLocaleString()}
-                                    </p>
+                        <div className="divide-y divide-gray-100">
+                            {transactions.map(tx => (
+                                <div
+                                    key={tx.id}
+                                    className="flex items-center justify-between p-3.5 sm:p-4 gap-3 hover:bg-gray-50/50 transition-colors"
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs sm:text-sm font-bold text-gray-900 capitalize truncate">
+                                            {tx.type === 'credit' ? '+ Top Up' : '- League Entry'}
+                                        </p>
+                                        <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 truncate">
+                                            {tx.payment_method} · {new Date(tx.created_at).toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <p className={`text-xs sm:text-sm font-bold ${
+                                            tx.type === 'credit' ? 'text-emerald-600' : 'text-red-500'
+                                        }`}>
+                                            {tx.type === 'credit' ? '+' : '-'} NPR {Number(tx.amount).toFixed(2)}
+                                        </p>
+                                        <p className={`text-[10px] sm:text-xs font-semibold capitalize mt-0.5 ${
+                                            tx.status === 'completed' ? 'text-emerald-500' :
+                                            tx.status === 'failed' ? 'text-red-400' : 'text-amber-500'
+                                        }`}>
+                                            {tx.status}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className={`font-bold ${
-                                        tx.type === 'credit' ? 'text-green-600' : 'text-red-500'
-                                    }`}>
-                                        {tx.type === 'credit' ? '+' : '-'} NPR {Number(tx.amount).toFixed(2)}
-                                    </p>
-                                    <p className={`text-xs mt-0.5 ${
-                                        tx.status === 'completed' ? 'text-green-500' :
-                                        tx.status === 'failed' ? 'text-red-400' : 'text-yellow-500'
-                                    }`}>
-                                        {tx.status}
-                                    </p>
-                                </div>
-                            </div>
-                        ))
+                            ))}
+                        </div>
                     )}
                 </div>
 
-                <div className="flex justify-between mt-4">
+                {/* Pagination Controls */}
+                <div className="flex justify-between items-center mt-4 sm:mt-6 gap-2">
                     <button
                         disabled={!prevPage}
                         onClick={() => goToPage(prevPage)}
-                        className="disabled:opacity-30 text-sm"
+                        className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-xs sm:text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all"
                     >
-                        Previous
+                        ← Previous
                     </button>
                     <button
                         disabled={!nextPage}
                         onClick={() => goToPage(nextPage)}
-                        className="disabled:opacity-30 text-sm"
+                        className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-xs sm:text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all"
                     >
-                        Next
+                        Next →
                     </button>
                 </div>
             </div>

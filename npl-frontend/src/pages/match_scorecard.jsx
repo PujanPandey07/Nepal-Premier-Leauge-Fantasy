@@ -44,11 +44,6 @@ function StatPill({ label, value }) {
   )
 }
 
-// Cricbuzz-style dismissal line under the batter's name.
-// `how_out` is expected to be the raw dismissal text from the data source
-// (e.g. "c Sharma b Khan", "b Khan", "run out (Gurung)").
-// If it's missing, we fall back to "not out" — safe default until the
-// backend field/ingestion change lands.
 function DismissalText({ player }) {
   if (player.how_out) {
     return <p className="mt-0.5 text-xs text-gray-500">{player.how_out}</p>
@@ -72,8 +67,8 @@ function BattingTable({ performances }) {
           </tr>
         </thead>
         <tbody>
-          {performances.map((player) => (
-            <tr key={player.player} className="border-t border-gray-100 hover:bg-gray-50/60">
+          {performances.map((player, idx) => (
+            <tr key={player.player || player.id || idx} className="border-t border-gray-100 hover:bg-gray-50/60">
               <td className="px-4 py-3">
                 <p className="font-medium text-gray-900">{player.player_name}</p>
                 <DismissalText player={player} />
@@ -92,10 +87,6 @@ function BattingTable({ performances }) {
   )
 }
 
-// Bowling figures only. Catches/run-outs are fielding credit tied to whoever
-// was fielding on a given dismissal, not the bowler's own bowling line —
-// that credit now shows up in DismissalText instead, next to the batter it
-// actually happened to.
 function BowlingTable({ performances }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -111,8 +102,8 @@ function BowlingTable({ performances }) {
           </tr>
         </thead>
         <tbody>
-          {performances.map((player) => (
-            <tr key={player.player} className="border-t border-gray-100 hover:bg-gray-50/60">
+          {performances.map((player, idx) => (
+            <tr key={player.player || player.id || idx} className="border-t border-gray-100 hover:bg-gray-50/60">
               <td className="px-4 py-3 font-medium text-gray-900">{player.player_name}</td>
               <td className="px-4 py-3 text-right tabular-nums text-gray-600">{formatOvers(player.overs_bowled)}</td>
               <td className="px-4 py-3 text-right tabular-nums text-gray-600">{player.maidens}</td>
@@ -154,14 +145,29 @@ export default function MatchScorecard() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    let isMounted = true
     setLoading(true)
-    axiosInstance.get(`/api/matches/${matchId}/scorecard/`)
-      .then(res => {
+
+    axiosInstance
+      .get(`/api/matches/${matchId}/scorecard/`)
+      .then((res) => {
+        if (!isMounted) return
         setScorecard(res.data)
         setActiveInnings(0)
+        setError(null)
       })
-      .catch(() => setError('Could not load scorecard for this match.'))
-      .finally(() => setLoading(false))
+      .catch((err) => {
+        if (!isMounted) return
+        console.error('Error fetching scorecard:', err)
+        setError('Could not load scorecard for this match.')
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
   }, [matchId])
 
   const innings = scorecard?.innings || []
@@ -171,13 +177,20 @@ export default function MatchScorecard() {
 
   const battingPlayers = useMemo(() => {
     if (!currentInnings?.performances?.length) return []
-    return [...currentInnings.performances].filter(isBattingPerformance)
+    return currentInnings.performances.filter(isBattingPerformance)
   }, [currentInnings])
 
   const bowlingPlayers = useMemo(() => {
     if (!currentInnings?.performances?.length) return []
-    return [...currentInnings.performances].filter(isBowlingPerformance)
+    return currentInnings.performances.filter(isBowlingPerformance)
   }, [currentInnings])
+
+  const matchDateFormatted = scorecard?.match_date
+    ? new Date(scorecard.match_date).toLocaleString()
+    : '-'
+  const matchDateOnly = scorecard?.match_date
+    ? new Date(scorecard.match_date).toLocaleDateString()
+    : '-'
 
   if (loading) {
     return (
@@ -224,7 +237,7 @@ export default function MatchScorecard() {
                   {scorecard.home_team_name} vs {scorecard.away_team_name}
                 </h1>
                 <p className="mt-2 text-sm text-white/70">
-                  {new Date(scorecard.match_date).toLocaleString()} · {scorecard.venue}
+                  {matchDateFormatted} · {scorecard.venue || 'TBD'}
                 </p>
               </div>
               <div className="rounded-2xl bg-white/10 px-4 py-3 text-right backdrop-blur">
@@ -236,10 +249,10 @@ export default function MatchScorecard() {
 
           <div className="border-b border-gray-100 bg-gray-50 px-4 py-4 md:px-8">
             <div className="grid gap-3 md:grid-cols-4">
-              <StatPill label="Match status" value={scorecard.status} />
+              <StatPill label="Match status" value={scorecard.status || '-'} />
               <StatPill label="Total innings" value={innings.length} />
-              <StatPill label="Venue" value={scorecard.venue} />
-              <StatPill label="Played on" value={new Date(scorecard.match_date).toLocaleDateString()} />
+              <StatPill label="Venue" value={scorecard.venue || '-'} />
+              <StatPill label="Played on" value={matchDateOnly} />
             </div>
           </div>
 
@@ -249,12 +262,14 @@ export default function MatchScorecard() {
                 const active = index === activeInnings
                 return (
                   <button
-                    key={inning.id}
+                    key={inning.id || index}
                     onClick={() => setActiveInnings(index)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${active ? 'text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      active ? 'text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                     style={active ? { backgroundColor: BRAND } : undefined}
                   >
-                    Innings {inning.innings_number} · {inning.batting_team_name}
+                    Innings {inning.innings_number || index + 1} · {inning.batting_team_name}
                   </button>
                 )
               })}
@@ -266,26 +281,40 @@ export default function MatchScorecard() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Cricbuzz-style score banner for the active innings */}
                 <div className="rounded-2xl p-5 text-white" style={{ backgroundColor: BRAND }}>
-                  <p className="text-xs uppercase tracking-wide text-white/70">{currentInnings.batting_team_name}</p>
+                  <p className="text-xs uppercase tracking-wide text-white/70">
+                    {currentInnings.batting_team_name}
+                  </p>
                   <div className="mt-1 flex items-baseline gap-3">
-                    <span className="text-3xl font-black">{currentInnings.total_runs}/{currentInnings.total_wickets}</span>
-                    <span className="text-sm text-white/70">({formatOvers(currentInnings.overs)} overs)</span>
+                    <span className="text-3xl font-black">
+                      {currentInnings.total_runs}/{currentInnings.total_wickets}
+                    </span>
+                    <span className="text-sm text-white/70">
+                      ({formatOvers(currentInnings.overs)} overs)
+                    </span>
                   </div>
                   <p className="mt-1 text-xs text-white/60">
-                    Extras: {currentInnings.extras} · {currentInnings.is_complete ? 'Innings complete' : 'In progress'}
+                    Extras: {currentInnings.extras ?? 0} ·{' '}
+                    {currentInnings.is_complete ? 'Innings complete' : 'In progress'}
                   </p>
                 </div>
 
                 <div>
                   <h2 className="mb-3 text-lg font-bold text-gray-900">Batting</h2>
-                  <BattingTable performances={battingPlayers} />
+                  {battingPlayers.length > 0 ? (
+                    <BattingTable performances={battingPlayers} />
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No batting stats available for this innings.</p>
+                  )}
                 </div>
 
                 <div>
                   <h2 className="mb-3 text-lg font-bold text-gray-900">Bowling</h2>
-                  <BowlingTable performances={bowlingPlayers} />
+                  {bowlingPlayers.length > 0 ? (
+                    <BowlingTable performances={bowlingPlayers} />
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No bowling stats available for this innings.</p>
+                  )}
                 </div>
               </div>
             )}
