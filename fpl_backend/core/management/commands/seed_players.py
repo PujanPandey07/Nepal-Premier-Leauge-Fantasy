@@ -3,7 +3,7 @@ import os
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 # Adjust 'your_app' to your Django app name
-from your_app.models import Cricket_Team, Player
+from core.models import Cricket_Team, Player
 
 CATEGORY_HEADERS = {"BATTERS", "ALL ROUNDERS",
                     "WICKET KEEPERS", "BOWLERS", "OTHERS"}
