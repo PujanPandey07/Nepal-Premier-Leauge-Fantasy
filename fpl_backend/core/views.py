@@ -344,52 +344,106 @@ class InitiatePaymentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        amount = request.data.get('amount')
-        if not amount:
+        raw_amount = request.data.get('amount')
+        if not raw_amount:
             return Response({'detail': 'Amount required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        amount_in_npr = int(amount) / 100
+        try:
+            # Assume user sent amount in NPR (e.g. 500) -> convert to Paisa (50000)
+            npr_amount = Decimal(str(raw_amount))
+            if npr_amount < 10:  # Khalti min limit: Rs 10
+                return Response({'detail': 'Minimum amount is Rs 10.'}, status=status.HTTP_400_BAD_REQUEST)
 
+            paisa_amount = int(npr_amount * 100)
+        except (ValueError, TypeError):
+            return Response({'detail': 'Invalid amount.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Create transaction record
         transaction = Transaction.objects.create(
             user=request.user,
-            amount=amount_in_npr,
+            amount=npr_amount,
             type='credit',
             status='pending',
             payment_method='khalti'
         )
 
-        return_url = f'{settings.BACKEND_URL}/api/payments/verify/'
-        response = initiate_payment(
-            amount, transaction.id, request.user, return_url)
+        return_url = f"{settings.BACKEND_URL.rstrip('/')}/api/payments/verify/"
 
-        transaction.reference_id = response.get('pidx')
+        # 2. Call Khalti API
+        response = initiate_payment(
+            amount=paisa_amount,
+            transaction_id=transaction.id,
+            user=request.user,
+            return_url=return_url
+        )
+
+        # Print response in console to inspect gateway errors during dev
+        print("Khalti Initiate Response:", response)
+
+        pidx = response.get('pidx')
+        payment_url = response.get('payment_url')
+
+        # 3. Handle initiation failure so DB doesn't stay 'pending'
+        if not pidx or not payment_url:
+            transaction.status = 'failed'
+            transaction.save()
+            return Response(
+                {'detail': response.get(
+                    'detail') or 'Khalti failed to initiate payment.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 4. Save reference ID and return URL
+        transaction.reference_id = pidx
         transaction.save()
 
-        return Response({'payment_url': response.get('payment_url')})
+        return Response({'payment_url': payment_url}, status=status.HTTP_200_OK)
 
 
 class VerifyPaymentView(APIView):
-    permission_classes = []
+    permission_classes = []  # Kept open as browser redirects hit this URL directly
 
     def get(self, request):
         pidx = request.query_params.get('pidx')
         if not pidx:
+            return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed&reason=missing_pidx')
+
+        # 1. Safely retrieve the transaction (prevents unhandled 404 exception pages)
+        tx = Transaction.objects.filter(reference_id=pidx).first()
+        if not tx:
+            return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed&reason=transaction_not_found')
+
+        # 2. Idempotency Check: Prevents re-crediting wallet balance on page refreshes
+        if tx.status == 'completed':
+            return redirect(f'{settings.FRONTEND_URL}/wallet?status=success')
+        if tx.status == 'failed':
             return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed')
 
-        response = verify_payment(pidx)
-        transaction = get_object_or_404(Transaction, reference_id=pidx)
+        # 3. Call the verification function (Mock or Khalti API)
+        try:
+            response = verify_payment(pidx)
+        except Exception:
+            return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed')
 
+        # 4. Atomic balance update if status is 'Completed'
         if response.get('status') == 'Completed':
-            transaction.status = 'completed'
-            transaction.save()
+            with db_transaction.atomic():
+                # Lock row to prevent simultaneous race condition updates
+                tx_locked = Transaction.objects.select_for_update().get(pk=tx.pk)
 
-            User.objects.filter(pk=transaction.user.pk).update(
-                wallet_balance=F('wallet_balance') + transaction.amount
-            )
+                if tx_locked.status != 'completed':
+                    tx_locked.status = 'completed'
+                    tx_locked.save()
+
+                    # Safely increment wallet balance using F() expression
+                    tx_locked.user.__class__.objects.filter(pk=tx_locked.user.pk).update(
+                        wallet_balance=F('wallet_balance') + tx_locked.amount
+                    )
+
             return redirect(f'{settings.FRONTEND_URL}/wallet?status=success')
         else:
-            transaction.status = 'failed'
-            transaction.save()
+            tx.status = 'failed'
+            tx.save()
             return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed')
 
 
