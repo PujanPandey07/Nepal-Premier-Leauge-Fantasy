@@ -22,28 +22,48 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
     setLoading(true)
 
     const controller = new AbortController()
-    const params = new URLSearchParams()
-    
-    if (match.home_team && match.away_team) {
-      params.append('teams', `${match.home_team},${match.away_team}`)
-    }
-    if (searchTerm.trim()) params.append('search', searchTerm.trim())
 
+    // Fetch players with high page_size to avoid pagination cutting off Team 2
     axiosInstance
-      .get(`/api/players/?${params.toString()}`, { signal: controller.signal })
+      .get(`/api/players/?page_size=200`, { signal: controller.signal })
       .then((res) => {
-        const list = res.data.results || res.data
-        setPlayers(list.map((p) => ({ ...p, credit_value: Number(p.credit_value) })))
+        const rawList = res.data.results || res.data
+
+        // Extract team identifiers safely whether string, number, or object
+        const homeId = typeof match.home_team === 'object' ? match.home_team?.id : match.home_team
+        const awayId = typeof match.away_team === 'object' ? match.away_team?.id : match.away_team
+        const homeName = match.home_team_name || match.home_team
+        const awayName = match.away_team_name || match.away_team
+
+        // Keep players that match either home or away team
+        const matchPlayers = rawList.filter((p) => {
+          if (!homeId && !homeName) return true
+          
+          const playerTeamId = typeof p.team === 'object' ? p.team?.id : p.team
+          const playerTeamName = p.team_name || p.team
+
+          const matchesHome = (homeId && playerTeamId === homeId) || (homeName && playerTeamName === homeName)
+          const matchesAway = (awayId && playerTeamId === awayId) || (awayName && playerTeamName === awayName)
+
+          return matchesHome || matchesAway
+        })
+
+        setPlayers(
+          matchPlayers.map((p) => ({
+            ...p,
+            credit_value: Number(p.credit_value),
+          }))
+        )
       })
       .catch((err) => {
         if (err.name !== 'CanceledError') {
-          console.error('Error fetching players for drawer:', err)
+          console.error('Error fetching players:', err)
         }
       })
       .finally(() => setLoading(false))
 
     return () => controller.abort()
-  }, [match, searchTerm])
+  }, [match])
 
   const handleAdd = async (player) => {
     setErrorMessage(null)
@@ -54,9 +74,14 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
     }
   }
 
-  const filteredPlayers = players.filter(
-    (player) => getFantasyRole(player.role) === getFantasyRole(role)
-  )
+  // Filter role and search term locally
+  const filteredPlayers = players.filter((player) => {
+    const matchesRole = getFantasyRole(player.role) === getFantasyRole(role)
+    const matchesSearch = player.name
+      ?.toLowerCase()
+      .includes(searchTerm.toLowerCase().trim())
+    return matchesRole && matchesSearch
+  })
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
