@@ -2,7 +2,15 @@ import { createContext, useContext, useState, useMemo } from 'react'
 
 export const TeamContext = createContext()
 
-// Helper to normalize backend role strings into standard Fantasy categories
+// Required export for page components
+export const ROLE_LIMITS = {
+  WK: { min: 1, max: 4, label: 'Wicket Keepers' },
+  BAT: { min: 3, max: 6, label: 'Batters' },
+  AR: { min: 1, max: 4, label: 'All Rounders' },
+  BOWL: { min: 3, max: 6, label: 'Bowlers' },
+}
+
+// Required export for role normalization
 export const getFantasyRole = (role) => {
   if (!role) return 'BAT'
   const r = String(role).toUpperCase().trim()
@@ -13,14 +21,12 @@ export const getFantasyRole = (role) => {
   return 'BAT'
 }
 
-// Helper to extract clean team ID regardless of whether team is an ID or Object
 const getTeamId = (p) => {
   if (!p) return ''
   if (typeof p.team === 'object' && p.team !== null) return String(p.team.id || '')
   return String(p.team || '')
 }
 
-// Helper to resolve human-readable team name
 const getTeamName = (player, match) => {
   if (!player) return 'this team'
   if (player.team_name) return player.team_name
@@ -45,17 +51,14 @@ export function TeamProvider({ children }) {
 
   const TOTAL_CREDITS = 100
 
-  // Calculation: Total credits spent
   const creditsUsed = useMemo(() => {
     return selectedPlayers.reduce((sum, p) => sum + (Number(p.credit_value) || 0), 0)
   }, [selectedPlayers])
 
-  // Calculation: Remaining credits
   const creditsRemaining = useMemo(() => {
     return Math.max(0, TOTAL_CREDITS - creditsUsed)
   }, [creditsUsed])
 
-  // Calculation: Counts by normalized role
   const roleCounts = useMemo(() => {
     const counts = { WK: 0, BAT: 0, AR: 0, BOWL: 0 }
     selectedPlayers.forEach((p) => {
@@ -65,7 +68,6 @@ export function TeamProvider({ children }) {
     return counts
   }, [selectedPlayers])
 
-  // Calculation: Count of players selected per team
   const teamCounts = useMemo(() => {
     const counts = {}
     selectedPlayers.forEach((p) => {
@@ -77,20 +79,16 @@ export function TeamProvider({ children }) {
     return counts
   }, [selectedPlayers])
 
-  // Add Player Validation & Handler
   const addPlayer = (playerToAdd) => {
-    // 1. Check if player already exists in selection
     const exists = selectedPlayers.some((p) => String(p.id) === String(playerToAdd.id))
     if (exists) {
       return { success: false, error: `${playerToAdd.name} is already in your team.` }
     }
 
-    // 2. Check maximum player capacity (11 players)
     if (selectedPlayers.length >= 11) {
       return { success: false, error: 'You can only select a maximum of 11 players.' }
     }
 
-    // 3. Check credit budget limit
     const playerCredit = Number(playerToAdd.credit_value) || 0
     if (creditsUsed + playerCredit > TOTAL_CREDITS) {
       return {
@@ -99,7 +97,6 @@ export function TeamProvider({ children }) {
       }
     }
 
-    // 4. Check maximum 7 players per team restriction
     const targetTeamId = getTeamId(playerToAdd)
     const currentCountForTeam = selectedPlayers.filter(
       (p) => getTeamId(p) === targetTeamId
@@ -113,7 +110,6 @@ export function TeamProvider({ children }) {
       }
     }
 
-    // Add player to state with formatted credit value
     const normalizedPlayer = {
       ...playerToAdd,
       team_name: getTeamName(playerToAdd, match),
@@ -124,39 +120,29 @@ export function TeamProvider({ children }) {
     return { success: true }
   }
 
-  // Remove Player Handler
   const removePlayer = (playerId) => {
     setSelectedPlayers((prev) => prev.filter((p) => String(p.id) !== String(playerId)))
 
-    // Reset C/VC if removed player was designated
     if (String(captain) === String(playerId)) setCaptain(null)
     if (String(viceCaptain) === String(playerId)) setViceCaptain(null)
   }
 
-  // Captain Assignment
   const handleSetCaptain = (playerId) => {
-    if (String(viceCaptain) === String(playerId)) {
-      setViceCaptain(null) // Swap out if already vice-captain
-    }
+    if (String(viceCaptain) === String(playerId)) setViceCaptain(null)
     setCaptain(playerId)
   }
 
-  // Vice-Captain Assignment
   const handleSetViceCaptain = (playerId) => {
-    if (String(captain) === String(playerId)) {
-      setCaptain(null) // Swap out if already captain
-    }
+    if (String(captain) === String(playerId)) setCaptain(null)
     setViceCaptain(playerId)
   }
 
-  // Reset/Clear Team
   const resetTeam = () => {
     setSelectedPlayers([])
     setCaptain(null)
     setViceCaptain(null)
   }
 
-  // Hydrate team state (e.g. when editing an existing saved team)
   const loadExistingTeam = (playersList = [], capId = null, vcId = null) => {
     const formattedList = playersList.map((p) => ({
       ...p,
