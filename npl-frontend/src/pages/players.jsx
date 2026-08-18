@@ -1,181 +1,201 @@
-import { useEffect, useState } from "react";
-import Navbar from "../components/navbar";
-import axiosInstance from "../utilis/axiosInstance";
+import { useEffect, useState, useContext } from 'react'
+import axios from 'axios'
+import { TeamContext, ROLE_LIMITS } from '../context/teamcontext'
+import { Link, useSearchParams, useNavigate, useParams } from 'react-router-dom'
+import Navbar from '../components/navbar'
+import axiosInstance from '../utilis/axiosInstance'
 
-function Players() {
-  const [players, setPlayers] = useState([]);
-  const [tournaments, setTournaments] = useState([]);
-  const [selectedTournament, setSelectedTournament] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+function Players({ showAddButton = false }) {
+    const [players, setPlayers] = useState([])
+    const context = useContext(TeamContext)
+    const addPlayer = context?.addPlayer
+    const selectedPlayers = context?.selectedPlayers || []
+    const match = context?.match || null
+    const [searchParams] = useSearchParams()
+    const navigate = useNavigate()
+    const { matchId } = useParams()
+    const roleFilter = searchParams.get('role')
+    const [nextPage, setNextPage] = useState(null)
+    const [prevPage, setPrevPage] = useState(null)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [minPrice, setMinPrice] = useState('')
+    const [maxPrice, setMaxPrice] = useState('')
+    const [cricketTeams, setCricketTeams] = useState({})
 
-  // Pagination states
-  const [nextPage, setNextPage] = useState(null);
-  const [prevPage, setPrevPage] = useState(null);
+    useEffect(() => {
+        axiosInstance.get('/api/cricket-teams/')
+            .then(res => {
+                const list = res.data.results || res.data
+                const map = {}
+                list.forEach(t => { map[t.id] = t.name })
+                setCricketTeams(map)
+            })
+            .catch(error => console.error('Error fetching teams:', error))
+    }, [])
 
-  useEffect(() => {
-    // Fetch Tournaments for filtering (optional)
-    axiosInstance
-      .get("/api/tournaments/")
-      .then((res) => setTournaments(res.data.results || res.data || []))
-      .catch((err) => console.error("Error loading tournaments:", err));
-  }, []);
+    useEffect(() => {
+        // In team-building mode (showAddButton=true): wait for match to load
+        // so we can scope players to that match's two teams only.
+        // In general players page (showAddButton=false): skip the guard
+        // and fetch all players with no team filter.
+        if (showAddButton && !match) return
 
-  useEffect(() => {
-    fetchPlayers();
-  }, [selectedTournament]);
-
-  const fetchPlayers = (url = null) => {
-    setLoading(true);
-    setError(null);
-
-    const endpoint =
-      url ||
-      `/api/players/${
-        selectedTournament ? `?tournament=${selectedTournament}` : ""
-      }`;
-
-    axiosInstance
-      .get(endpoint)
-      .then((res) => {
-        // Safe data extraction handling both paginated and non-paginated responses
-        const data = res.data.results ? res.data.results : res.data;
-
-        if (Array.isArray(data)) {
-          setPlayers(data);
-          setNextPage(res.data.next || null);
-          setPrevPage(res.data.previous || null);
-        } else {
-          setPlayers([]);
-          console.warn("API response is not an array:", res.data);
+        const params = new URLSearchParams()
+        if (roleFilter) params.append('role', roleFilter)
+        if (searchTerm) params.append('search', searchTerm)
+        if (minPrice) params.append('min_credit_value', minPrice)
+        if (maxPrice) params.append('max_credit_value', maxPrice)
+        // Only filter by match teams when in team-building mode
+        if (showAddButton && match) {
+            params.append('teams', `${match.home_team},${match.away_team}`)
         }
-      })
-      .catch((err) => {
-        console.error("Error fetching players:", err);
-        setError("Failed to load players. Check server connection or API endpoint.");
-        setPlayers([]);
-      })
-      .finally(() => setLoading(false));
-  };
 
-  const filteredPlayers = players.filter((player) => {
-    const name = player.name || player.full_name || "";
-    const team = player.team_name || player.team?.name || "";
+        axiosInstance.get(`/api/players/?${params.toString()}`)
+            .then(res => {
+                const normalized = res.data.results.map(p => ({ ...p, credit_value: Number(p.credit_value) }))
+                setPlayers(normalized)
+                setNextPage(res.data.next)
+                setPrevPage(res.data.previous)
+            })
+            .catch(error => console.error('Error fetching players:', error))
+    }, [roleFilter, searchTerm, minPrice, maxPrice, match, showAddButton])
+
+    const handleAddPlayer = async (player) => {
+        const result = await addPlayer(player)
+        if (result.success) {
+            const newCount = selectedPlayers.filter(p => p.role === player.role).length + 1
+            if (newCount >= ROLE_LIMITS[player.role]) {
+                navigate(`/build-team/${matchId}`)
+            }
+        } else {
+            alert(result.error)
+        }
+    }
+
+    const goToPage = (url) => {
+        if (!url) return
+        axios.get(url)
+            .then(res => {
+                const normalized = res.data.results.map(p => ({ ...p, credit_value: Number(p.credit_value) }))
+                setPlayers(normalized)
+                setNextPage(res.data.next)
+                setPrevPage(res.data.previous)
+            })
+            .catch(error => console.error('Error fetching players:', error))
+    }
+
     return (
-      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      team.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  });
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+            <Navbar />
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar />
+            <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 md:px-8 md:py-8">
+                <h1 className="text-2xl md:text-3xl font-bold mb-4 text-gray-900">NPL Players</h1>
+                {showAddButton && (
+                    <Link to={`/build-team/${matchId}`} className="inline-block mb-4 text-blue-600 hover:underline text-sm font-medium">
+                        ← Back to team
+                    </Link>
+                )}
+                <p className="mb-4 text-sm text-gray-600">Selected: {selectedPlayers.length}</p>
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 md:px-8 md:py-8">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Players</h1>
-            <p className="text-sm text-gray-500 mt-1">Browse available players and stats</p>
-          </div>
+                {/* Filter Controls (Responsive Flex) */}
+                <div className="flex flex-wrap gap-3 mb-6">
+                    <input
+                        type="text"
+                        placeholder="Search by name"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-indigo-500 flex-1 min-w-[200px]"
+                    />
+                    <input
+                        type="number"
+                        placeholder="Min credits"
+                        value={minPrice}
+                        onChange={e => setMinPrice(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-indigo-500 w-full sm:w-32"
+                    />
+                    <input
+                        type="number"
+                        placeholder="Max credits"
+                        value={maxPrice}
+                        onChange={e => setMaxPrice(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-indigo-500 w-full sm:w-32"
+                    />
+                </div>
 
-          {/* Search & Tournament Filter */}
-          <div className="flex flex-wrap gap-3">
-            <input
-              type="text"
-              placeholder="Search player or team..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-indigo-500"
-            />
+                {/* Table Container (Horizontal scroll on mobile viewports) */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <div className="min-w-[650px]">
+                            <div className="grid grid-cols-6 bg-gray-800 text-white text-xs font-semibold uppercase tracking-wider p-4">
+                                <span>Player</span>
+                                <span>Team</span>
+                                <span>Role</span>
+                                <span>Batting</span>
+                                <span>Bowling</span>
+                                <span>Credits</span>
+                            </div>
 
-            {tournaments.length > 0 && (
-              <select
-                value={selectedTournament}
-                onChange={(e) => setSelectedTournament(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-indigo-500"
-              >
-                <option value="">All Tournaments</option>
-                {tournaments.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
+                            {players.map(player => {
+                                const isSelected = selectedPlayers.some(p => p.id === player.id)
+                                return (
+                                    <div
+                                        key={player.id}
+                                        className={`border-b border-gray-200 flex items-center justify-between ${isSelected ? 'bg-green-50' : ''}`}
+                                    >
+                                        <Link
+                                            to={`/players/${player.id}`}
+                                            className="grid grid-cols-6 items-center p-4 flex-1 hover:bg-gray-50 transition-colors text-sm"
+                                        >
+                                            <span className="font-medium text-gray-900 truncate pr-2">{player.name}</span>
+                                            <span className="text-gray-600 truncate">{cricketTeams[player.team] || '...'}</span>
+                                            <span className="text-gray-600 capitalize">{player.role}</span>
+                                            <span className="text-gray-600 truncate">{player.batting_style || '—'}</span>
+                                            <span className="text-gray-600 truncate">{player.bowling_style || '—'}</span>
+                                            <span className="text-blue-600 font-bold">{player.credit_value}</span>
+                                        </Link>
+                                        {showAddButton && (
+                                            <div className="pr-4 shrink-0">
+                                                {isSelected ? (
+                                                    <span className="inline-block bg-green-600 text-white text-xs font-semibold py-1 px-3 rounded">
+                                                        ✓ Added
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleAddPlayer(player)}
+                                                        className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors"
+                                                    >
+                                                        Add to Team
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex justify-between items-center mt-6">
+                    <button
+                        disabled={!prevPage}
+                        onClick={() => goToPage(prevPage)}
+                        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                        Previous
+                    </button>
+                    <button
+                        disabled={!nextPage}
+                        onClick={() => goToPage(nextPage)}
+                        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                        Next
+                    </button>
+                </div>
+            </main>
         </div>
-
-        {error && (
-          <div className="p-4 mb-6 text-sm text-red-700 bg-red-100 rounded-lg border border-red-200">
-            {error}
-          </div>
-        )}
-
-        {/* Players Grid / Table */}
-        {loading ? (
-          <div className="text-center py-12 text-gray-500 animate-pulse font-medium">
-            Loading players...
-          </div>
-        ) : filteredPlayers.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">
-            No players found.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-900 text-white text-xs font-bold uppercase tracking-wider">
-                  <th className="px-6 py-3.5">Player Name</th>
-                  <th className="px-6 py-3.5">Role</th>
-                  <th className="px-6 py-3.5">Team</th>
-                  <th className="px-6 py-3.5 text-right">Credits / Value</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 text-sm">
-                {filteredPlayers.map((player) => (
-                  <tr key={player.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-gray-900">
-                      {player.name || player.full_name || "Unnamed Player"}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600 capitalize">
-                      {player.role || player.position || "—"}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {player.team_name || player.team?.name || "—"}
-                    </td>
-                    <td className="px-6 py-4 text-right font-bold text-indigo-600">
-                      {player.credit_value ?? player.credits ?? player.price ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination controls */}
-        {(nextPage || prevPage) && (
-          <div className="flex justify-between items-center mt-6">
-            <button
-              disabled={!prevPage}
-              onClick={() => fetchPlayers(prevPage)}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              ← Previous
-            </button>
-            <button
-              disabled={!nextPage}
-              onClick={() => fetchPlayers(nextPage)}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next →
-            </button>
-          </div>
-        )}
-      </main>
-    </div>
-  );
+    )
 }
 
-export default Players;
+export default Players
