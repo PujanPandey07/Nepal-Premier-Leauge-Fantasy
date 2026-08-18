@@ -10,6 +10,22 @@ export default function PlayersDetail() {
   const [seasonStats, setSeasonStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [cricketTeams, setCricketTeams] = useState({})
+
+  // Fetch team names mapping
+  useEffect(() => {
+    axiosInstance
+      .get('/api/cricket-teams/')
+      .then((res) => {
+        const list = res.data.results || res.data || []
+        const map = {}
+        list.forEach((t) => {
+          map[t.id] = t.name
+        })
+        setCricketTeams(map)
+      })
+      .catch((err) => console.error('Error fetching teams map:', err))
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -33,17 +49,28 @@ export default function PlayersDetail() {
           // Fetch squad mates if team context exists
           if (playerData?.team) {
             try {
-              const allRes = await axiosInstance.get('/api/players/')
+              const teamId =
+                typeof playerData.team === 'object'
+                  ? playerData.team.id
+                  : playerData.team
+
+              // Fetch with team query param and page_size=100 so pagination doesn't cut off teammates
+              const allRes = await axiosInstance.get(
+                `/api/players/?team=${teamId}&page_size=100`
+              )
               if (!isMounted) return
-              
-              // Handle both paginated ({ results: [] }) and array responses
+
               const rawList = Array.isArray(allRes.data)
                 ? allRes.data
                 : allRes.data?.results || []
 
-              const others = rawList.filter(
-                (p) => p.team === playerData.team && String(p.id) !== String(id)
-              )
+              const others = rawList.filter((p) => {
+                const pTeamId = typeof p.team === 'object' ? p.team.id : p.team
+                return (
+                  String(pTeamId) === String(teamId) &&
+                  String(p.id) !== String(id)
+                )
+              })
               setTeammates(others)
             } catch (err) {
               console.error('Error fetching teammates:', err)
@@ -59,7 +86,9 @@ export default function PlayersDetail() {
       } catch (err) {
         if (!isMounted) return
         console.error('Error loading player details:', err)
-        setError('Could not load player profile. The player may not exist or is unavailable.')
+        setError(
+          'Could not load player profile. The player may not exist or is unavailable.'
+        )
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -81,6 +110,13 @@ export default function PlayersDetail() {
       .join('')
       .toUpperCase()
       .slice(0, 3)
+  }
+
+  // Helper to safely extract team name
+  const getTeamName = (teamField) => {
+    if (!teamField) return ''
+    if (typeof teamField === 'object' && teamField.name) return teamField.name
+    return cricketTeams[teamField] || player?.team_name || ''
   }
 
   if (loading) {
@@ -118,11 +154,16 @@ export default function PlayersDetail() {
       <div className="min-h-screen bg-gray-100">
         <Navbar />
         <div className="mx-auto max-w-5xl px-6 py-12">
-          <Link to="/players" className="text-sm font-medium text-indigo-700 hover:underline">
+          <Link
+            to="/players"
+            className="text-sm font-medium text-indigo-700 hover:underline"
+          >
             ← Back to Players
           </Link>
           <div className="mt-6 rounded-2xl border border-red-100 bg-white p-8 text-center shadow-sm">
-            <p className="text-lg font-semibold text-red-600">{error || 'Player not found.'}</p>
+            <p className="text-lg font-semibold text-red-600">
+              {error || 'Player not found.'}
+            </p>
             <p className="mt-2 text-xs text-gray-500">
               Please check the player ID or select another player from the roster.
             </p>
@@ -133,6 +174,7 @@ export default function PlayersDetail() {
   }
 
   const initials = getInitials(player.name)
+  const teamName = getTeamName(player.team)
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -146,7 +188,10 @@ export default function PlayersDetail() {
           </div>
           <div className="flex-1">
             <div className="mb-2 flex items-center gap-3">
-              <Link to="/players" className="text-xs font-semibold text-indigo-200 hover:underline">
+              <Link
+                to="/players"
+                className="text-xs font-semibold text-indigo-200 hover:underline"
+              >
                 ← Players
               </Link>
               <span className="text-indigo-400">•</span>
@@ -158,7 +203,8 @@ export default function PlayersDetail() {
               {player.name}
             </h1>
             <p className="mt-1 text-sm text-indigo-200">
-              {player.nationality || 'Nepal'} {player.team && `| ${player.team}`}
+              {player.nationality || 'Nepal'}{' '}
+              {teamName && `| ${teamName}`}
             </p>
           </div>
           <div>
@@ -182,25 +228,33 @@ export default function PlayersDetail() {
             <p className="text-3xl font-extrabold text-gray-900">
               {seasonStats?.matches_played ?? '–'}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">Matches</p>
+            <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">
+              Matches
+            </p>
           </div>
           <div className="px-4 text-center">
             <p className="text-3xl font-extrabold text-gray-900">
               {seasonStats?.total_runs ?? '–'}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">Runs</p>
+            <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">
+              Runs
+            </p>
           </div>
           <div className="px-4 text-center">
             <p className="text-3xl font-extrabold text-gray-900">
               {seasonStats?.total_wickets ?? '–'}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">Wickets</p>
+            <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">
+              Wickets
+            </p>
           </div>
           <div className="px-4 text-center">
             <p className="text-3xl font-extrabold text-indigo-700">
               {seasonStats?.total_fantasy_points ?? '–'}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">Fantasy Pts</p>
+            <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">
+              Fantasy Pts
+            </p>
           </div>
         </div>
       </div>
@@ -213,23 +267,39 @@ export default function PlayersDetail() {
           <div className="grid grid-cols-2 gap-y-5 gap-x-4">
             <div>
               <p className="mb-1 text-xs text-gray-500">Role</p>
-              <p className="text-base font-semibold text-gray-900">{player.role || 'N/A'}</p>
+              <p className="text-base font-semibold text-gray-900">
+                {player.role || 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="mb-1 text-xs text-gray-500">Team</p>
+              <p className="text-base font-semibold text-gray-900">
+                {teamName || 'N/A'}
+              </p>
             </div>
             <div>
               <p className="mb-1 text-xs text-gray-500">Nationality</p>
-              <p className="text-base font-semibold text-gray-900">{player.nationality || 'N/A'}</p>
+              <p className="text-base font-semibold text-gray-900">
+                {player.nationality || 'N/A'}
+              </p>
             </div>
             <div>
               <p className="mb-1 text-xs text-gray-500">Batting Style</p>
-              <p className="text-base font-semibold text-gray-900">{player.batting_style || 'N/A'}</p>
+              <p className="text-base font-semibold text-gray-900">
+                {player.batting_style || 'N/A'}
+              </p>
             </div>
             <div>
               <p className="mb-1 text-xs text-gray-500">Bowling Style</p>
-              <p className="text-base font-semibold text-gray-900">{player.bowling_style || 'N/A'}</p>
+              <p className="text-base font-semibold text-gray-900">
+                {player.bowling_style || 'N/A'}
+              </p>
             </div>
             <div>
               <p className="mb-1 text-xs text-gray-500">Credit Value</p>
-              <p className="text-base font-bold text-indigo-600">{player.credit_value ?? 'N/A'} Cr</p>
+              <p className="text-base font-bold text-indigo-600">
+                {player.credit_value ?? 'N/A'} Cr
+              </p>
             </div>
           </div>
         </div>
@@ -250,14 +320,18 @@ export default function PlayersDetail() {
                     {mateInitials}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">{mate.name}</p>
+                    <p className="truncate text-sm font-medium text-gray-900">
+                      {mate.name}
+                    </p>
                     <p className="text-xs text-gray-500">{mate.role}</p>
                   </div>
                 </Link>
               )
             })}
             {teammates.length === 0 && (
-              <p className="py-4 text-center text-xs text-gray-400">No teammates found</p>
+              <p className="py-4 text-center text-xs text-gray-400">
+                No teammates found
+              </p>
             )}
           </div>
         </div>

@@ -34,10 +34,6 @@ function Players({ showAddButton = false }) {
     }, [])
 
     useEffect(() => {
-        // In team-building mode (showAddButton=true): wait for match to load
-        // so we can scope players to that match's two teams only.
-        // In general players page (showAddButton=false): skip the guard
-        // and fetch all players with no team filter.
         if (showAddButton && !match) return
 
         const params = new URLSearchParams()
@@ -45,7 +41,7 @@ function Players({ showAddButton = false }) {
         if (searchTerm) params.append('search', searchTerm)
         if (minPrice) params.append('min_credit_value', minPrice)
         if (maxPrice) params.append('max_credit_value', maxPrice)
-        // Only filter by match teams when in team-building mode
+        
         if (showAddButton && match) {
             params.append('teams', `${match.home_team},${match.away_team}`)
         }
@@ -97,7 +93,7 @@ function Players({ showAddButton = false }) {
                 )}
                 <p className="mb-4 text-sm text-gray-600">Selected: {selectedPlayers.length}</p>
 
-                {/* Filter Controls (Responsive Flex) */}
+                {/* Search & Filters */}
                 <div className="flex flex-wrap gap-3 mb-6">
                     <input
                         type="text"
@@ -122,11 +118,12 @@ function Players({ showAddButton = false }) {
                     />
                 </div>
 
-                {/* Table Container (Horizontal scroll on mobile viewports) */}
+                {/* Table Container with scroll & clear column separation */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div className="overflow-x-auto">
-                        <div className="min-w-[650px]">
-                            <div className="grid grid-cols-6 bg-gray-800 text-white text-xs font-semibold uppercase tracking-wider p-4">
+                        <div className="min-w-[780px]">
+                            {/* Header Row */}
+                            <div className="grid grid-cols-6 gap-x-4 bg-gray-800 text-white text-xs font-semibold uppercase tracking-wider px-4 py-3.5">
                                 <span>Player</span>
                                 <span>Team</span>
                                 <span>Role</span>
@@ -135,6 +132,7 @@ function Players({ showAddButton = false }) {
                                 <span>Credits</span>
                             </div>
 
+                            {/* Player Rows */}
                             {players.map(player => {
                                 const isSelected = selectedPlayers.some(p => p.id === player.id)
                                 return (
@@ -144,13 +142,17 @@ function Players({ showAddButton = false }) {
                                     >
                                         <Link
                                             to={`/players/${player.id}`}
-                                            className="grid grid-cols-6 items-center p-4 flex-1 hover:bg-gray-50 transition-colors text-sm"
+                                            className="grid grid-cols-6 gap-x-4 items-center px-4 py-3.5 flex-1 hover:bg-gray-50 transition-colors text-sm"
                                         >
                                             <span className="font-medium text-gray-900 truncate pr-2">{player.name}</span>
-                                            <span className="text-gray-600 truncate">{cricketTeams[player.team] || '...'}</span>
-                                            <span className="text-gray-600 capitalize">{player.role}</span>
-                                            <span className="text-gray-600 truncate">{player.batting_style || '—'}</span>
-                                            <span className="text-gray-600 truncate">{player.bowling_style || '—'}</span>
+                                            <span className="text-gray-600 truncate pr-2">
+                                                {typeof player.team === 'object' && player.team !== null
+                                                    ? player.team.name
+                                                    : (cricketTeams[player.team] || '—')}
+                                            </span>
+                                            <span className="text-gray-600 capitalize truncate pr-2">{player.role}</span>
+                                            <span className="text-gray-600 truncate pr-2">{player.batting_style || '—'}</span>
+                                            <span className="text-gray-600 truncate pr-2">{player.bowling_style || '—'}</span>
                                             <span className="text-blue-600 font-bold">{player.credit_value}</span>
                                         </Link>
                                         {showAddButton && (
@@ -162,7 +164,7 @@ function Players({ showAddButton = false }) {
                                                 ) : (
                                                     <button
                                                         onClick={() => handleAddPlayer(player)}
-                                                        className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors"
+                                                        className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors whitespace-nowrap"
                                                     >
                                                         Add to Team
                                                     </button>

@@ -16,11 +16,14 @@ function CricketTeamDetail() {
 
     Promise.all([
       axiosInstance.get(`/api/cricket-teams/${teamId}/`),
-      axiosInstance.get(`/api/players/?team=${teamId}&page_size=50`)
+      axiosInstance.get(`/api/players/?team=${teamId}&page_size=100`)
     ])
       .then(([teamRes, playersRes]) => {
         setTeam(teamRes.data)
-        setPlayers(playersRes.data.results || playersRes.data)
+        const rawPlayers = Array.isArray(playersRes.data)
+          ? playersRes.data
+          : playersRes.data?.results || []
+        setPlayers(rawPlayers)
       })
       .catch(err => {
         console.error('Error loading team:', err)
@@ -29,10 +32,23 @@ function CricketTeamDetail() {
       .finally(() => setLoading(false))
   }, [teamId])
 
-  // Group players by role
-  const roles = ['Wicket-Keeper', 'Batsman', 'All-Rounder', 'Bowler']
-  const playersByRole = roles.reduce((acc, role) => {
-    acc[role] = players.filter(p => p.role === role)
+  // Normalization helper to map varying DB role strings to standard categories
+  const getNormalizedRole = (roleStr) => {
+    if (!roleStr) return 'Others'
+    const r = roleStr.toLowerCase().trim()
+    if (r.includes('wk') || r.includes('keeper')) return 'Wicket-Keeper'
+    if (r.includes('bat')) return 'Batsman'
+    if (r.includes('bowl')) return 'Bowler'
+    if (r.includes('all') || r.includes('round')) return 'All-Rounder'
+    return 'Others'
+  }
+
+  // Define category order
+  const roleCategories = ['Wicket-Keeper', 'Batsman', 'All-Rounder', 'Bowler', 'Others']
+
+  // Group players using the normalized role
+  const playersByRole = roleCategories.reduce((acc, category) => {
+    acc[category] = players.filter(p => getNormalizedRole(p.role) === category)
     return acc
   }, {})
 
@@ -98,17 +114,25 @@ function CricketTeamDetail() {
           </div>
         </div>
 
+        {/* Total Squad Count Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-bold text-gray-800">Squad Roster</h2>
+          <span className="text-xs font-semibold bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+            Total Players: {players.length}
+          </span>
+        </div>
+
         {/* Players Grouped By Role */}
-        {roles.map(role => {
+        {roleCategories.map(role => {
           const rolePlayers = playersByRole[role]
           if (!rolePlayers || rolePlayers.length === 0) return null
 
           return (
             <div key={role} className="mb-8">
               <div className="flex items-center gap-2 mb-3">
-                <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                   {role}
-                </h2>
+                </h3>
                 <span className="bg-slate-200 text-slate-700 text-xs font-semibold px-2 py-0.5 rounded-full">
                   {rolePlayers.length}
                 </span>
@@ -126,11 +150,12 @@ function CricketTeamDetail() {
                 {/* Table Rows */}
                 <div className="divide-y divide-gray-100">
                   {rolePlayers.map(player => (
-                    <div
+                    <Link
                       key={player.id}
-                      className="grid grid-cols-12 items-center px-4 py-3 text-xs sm:text-sm hover:bg-slate-50 transition-colors"
+                      to={`/players/${player.id}`}
+                      className="grid grid-cols-12 items-center px-4 py-3 text-xs sm:text-sm hover:bg-slate-50 transition-colors cursor-pointer"
                     >
-                      <span className="col-span-5 sm:col-span-4 font-semibold text-gray-900 truncate pr-2">
+                      <span className="col-span-5 sm:col-span-4 font-semibold text-gray-900 truncate pr-2 hover:text-blue-600">
                         {player.name}
                       </span>
                       <span className="col-span-3 sm:col-span-3 text-gray-500 truncate">
@@ -142,7 +167,7 @@ function CricketTeamDetail() {
                       <span className="col-span-2 text-right font-bold text-blue-600">
                         {player.credit_value}
                       </span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
