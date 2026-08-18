@@ -1,15 +1,6 @@
 import { useEffect, useState, useContext } from 'react'
-import { TeamContext } from '../context/teamcontext'
+import { TeamContext, getFantasyRole } from '../context/teamcontext'
 import axiosInstance from '../utilis/axiosInstance'
-
-// Helper function to map verbose database roles into fantasy categories
-const getFantasyRole = (rawRole = '') => {
-  const r = rawRole.toLowerCase()
-  if (r.includes('keeper') || r.includes('wk')) return 'WK'
-  if (r.includes('all') || r.includes('rounder') || r.includes('ar')) return 'AR'
-  if (r.includes('bowl') || r.includes('bow')) return 'BOW'
-  return 'BAT'
-}
 
 export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
   const { match, selectedPlayers, addPlayer } = useContext(TeamContext)
@@ -18,7 +9,6 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [errorMessage, setErrorMessage] = useState(null)
 
-  // Close drawer on pressing Escape
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose()
@@ -27,7 +17,6 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
-  // Fetch all players for the match teams (without sending exact role string to Django)
   useEffect(() => {
     if (!match) return
     setLoading(true)
@@ -65,24 +54,19 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
     }
   }
 
-  // Filter fetched players by normalized role client-side
   const filteredPlayers = players.filter(
-    (player) => getFantasyRole(player.role) === role
+    (player) => getFantasyRole(player.role) === getFantasyRole(role)
   )
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Dimmed Backdrop */}
       <div
         className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
-      {/* Drawer Panel */}
       <div className="absolute inset-y-0 right-0 max-w-full flex">
         <div className="w-screen max-w-full sm:max-w-md bg-white shadow-2xl flex flex-col border-l border-gray-100">
-          
-          {/* Header */}
           <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 bg-slate-900 text-white">
             <div>
               <span className="text-[10px] font-bold tracking-wider text-purple-400 uppercase">
@@ -101,7 +85,6 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
             </button>
           </div>
 
-          {/* Inline Error Toast */}
           {errorMessage && (
             <div className="bg-red-50 border-b border-red-200 px-4 py-2.5 text-xs text-red-700 font-medium flex items-center justify-between">
               <span>⚠️ {errorMessage}</span>
@@ -114,7 +97,6 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
             </div>
           )}
 
-          {/* Search Bar */}
           <div className="p-3.5 sm:p-4 border-b border-gray-100 bg-gray-50/50">
             <div className="relative">
               <input
@@ -128,7 +110,6 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
             </div>
           </div>
 
-          {/* Player List */}
           <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
             {loading ? (
               [...Array(6)].map((_, i) => (
@@ -165,7 +146,6 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
                     key={player.id}
                     className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-gray-50/80 transition-colors gap-3"
                   >
-                    {/* Player Info */}
                     <button
                       onClick={() => onSelectPlayer(player.id)}
                       className="text-left flex items-center gap-3 min-w-0 flex-1 group"
@@ -187,7 +167,6 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
                       </div>
                     </button>
 
-                    {/* Action Button */}
                     <div className="shrink-0">
                       {isSelected ? (
                         <span className="inline-flex items-center gap-1 text-[11px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1.5 rounded-lg border border-emerald-200">

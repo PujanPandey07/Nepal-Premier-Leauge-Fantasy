@@ -1,13 +1,22 @@
-// TeamContext.jsx
 import { createContext, useState, useEffect } from 'react'
 import axiosInstance from '../utilis/axiosInstance'
 
 export const TeamContext = createContext()
+
 export const ROLE_LIMITS = {
   'Wicket-Keeper': 1,
   'Batsman': 3,
   'Bowler': 3,
   'All-Rounder': 4,
+}
+
+export const getFantasyRole = (rawRole = '') => {
+  if (!rawRole) return 'Batsman'
+  const r = String(rawRole).toLowerCase()
+  if (r.includes('keeper') || r.includes('wk')) return 'Wicket-Keeper'
+  if (r.includes('all') || r.includes('rounder') || r.includes('ar')) return 'All-Rounder'
+  if (r.includes('bowl') || r.includes('bow')) return 'Bowler'
+  return 'Batsman'
 }
 
 export function TeamProvider({ children }) {
@@ -94,9 +103,14 @@ export function TeamProvider({ children }) {
     if (selectedPlayers.some(p => p.id === player.id)) {
       return { success: false, error: 'Player already in team' }
     }
-    if (selectedPlayers.filter(p => p.role === player.role).length >= ROLE_LIMITS[player.role]) {
-      return { success: false, error: `Maximum limit reached for role: ${player.role}` }
+
+    const normalizedRole = getFantasyRole(player.role)
+    const currentRoleCount = selectedPlayers.filter(p => getFantasyRole(p.role) === normalizedRole).length
+
+    if (currentRoleCount >= ROLE_LIMITS[normalizedRole]) {
+      return { success: false, error: `Maximum limit reached for role: ${normalizedRole}` }
     }
+
     const totalCredits = selectedPlayers.reduce((sum, p) => sum + p.credit_value, 0)
     if (totalCredits + player.credit_value > tournament.budget_cap) {
       return { success: false, error: 'Adding this player exceeds the budget cap' }
