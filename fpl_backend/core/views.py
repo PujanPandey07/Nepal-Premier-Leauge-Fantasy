@@ -1,3 +1,8 @@
+from .models import Transaction
+from rest_framework.permissions import IsAuthenticated
+from django.db.models import F
+from django.db import transaction as db_transaction
+from decimal import Decimal, InvalidOperation
 from django.db.models.functions import DenseRank
 from django.db.models import Sum, Count, F, Window
 from django.utils.decorators import method_decorator
@@ -345,20 +350,41 @@ class InitiatePaymentView(APIView):
 
     def post(self, request):
         raw_amount = request.data.get('amount')
-        if not raw_amount:
-            return Response({'detail': 'Amount required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if raw_amount in (None, ''):
+            return Response(
+                {'detail': 'Amount required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
-            # Assume user sent amount in NPR (e.g. 500) -> convert to Paisa (50000)
+            # Frontend sends amount in NPR.
             npr_amount = Decimal(str(raw_amount))
-            if npr_amount < 10:  # Khalti min limit: Rs 10
-                return Response({'detail': 'Minimum amount is Rs 10.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            paisa_amount = int(npr_amount * 100)
-        except (ValueError, TypeError):
-            return Response({'detail': 'Invalid amount.'}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError, InvalidOperation):
+            return Response(
+                {'detail': 'Invalid amount.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # 1. Create transaction record
+        if npr_amount <= 0:
+            return Response(
+                {'detail': 'Amount must be greater than 0.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Mock payment minimum.
+        if npr_amount < Decimal('10'):
+            return Response(
+                {'detail': 'Minimum amount is Rs 10.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Convert NPR → paisa only when communicating with the
+        # mock Khalti gateway.
+        paisa_amount = int(npr_amount * 100)
+
+        # Create pending transaction.
         transaction = Transaction.objects.create(
             user=request.user,
             amount=npr_amount,
@@ -367,9 +393,11 @@ class InitiatePaymentView(APIView):
             payment_method='khalti'
         )
 
-        return_url = f"{settings.BACKEND_URL.rstrip('/')}/api/payments/verify/"
+        return_url = (
+            f"{settings.BACKEND_URL.rstrip('/')}"
+            f"/api/payments/verify/"
+        )
 
-        # 2. Call Khalti API
         response = initiate_payment(
             amount=paisa_amount,
             transaction_id=transaction.id,
@@ -377,74 +405,149 @@ class InitiatePaymentView(APIView):
             return_url=return_url
         )
 
-        # Print response in console to inspect gateway errors during dev
         print("Khalti Initiate Response:", response)
 
         pidx = response.get('pidx')
         payment_url = response.get('payment_url')
 
-        # 3. Handle initiation failure so DB doesn't stay 'pending'
+        # Gateway initiation failed.
         if not pidx or not payment_url:
             transaction.status = 'failed'
-            transaction.save()
+            transaction.save(update_fields=['status'])
+
             return Response(
-                {'detail': response.get(
-                    'detail') or 'Khalti failed to initiate payment.'},
+                {
+                    'detail': response.get(
+                        'detail',
+                        'Khalti failed to initiate payment.'
+                    )
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 4. Save reference ID and return URL
+        # Store mock/Khalti reference.
         transaction.reference_id = pidx
-        transaction.save()
+        transaction.save(update_fields=['reference_id'])
 
-        return Response({'payment_url': payment_url}, status=status.HTTP_200_OK)
+        return Response(
+            {
+                'payment_url': payment_url
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 class VerifyPaymentView(APIView):
-    permission_classes = []  # Kept open as browser redirects hit this URL directly
+    # Browser redirect from mock payment page needs to access this.
+    permission_classes = []
 
     def get(self, request):
         pidx = request.query_params.get('pidx')
+
         if not pidx:
-            return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed&reason=missing_pidx')
+            return redirect(
+                f"{settings.FRONTEND_URL}/wallet"
+                f"?status=failed&reason=missing_pidx"
+            )
 
-        # 1. Safely retrieve the transaction (prevents unhandled 404 exception pages)
-        tx = Transaction.objects.filter(reference_id=pidx).first()
+        tx = Transaction.objects.filter(
+            reference_id=pidx
+        ).first()
+
         if not tx:
-            return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed&reason=transaction_not_found')
+            return redirect(
+                f"{settings.FRONTEND_URL}/wallet"
+                f"?status=failed&reason=transaction_not_found"
+            )
 
-        # 2. Idempotency Check: Prevents re-crediting wallet balance on page refreshes
+        # ---------------------------------------------------------
+        # Expire old pending transactions.
+        # This is also a safety net in case the Celery task hasn't
+        # run yet.
+        # ---------------------------------------------------------
+        if tx.status == 'pending':
+            age = timezone.now() - tx.created_at
+
+            if age.total_seconds() >= 120:
+                tx.status = 'failed'
+                tx.save(update_fields=['status'])
+
+                return redirect(
+                    f"{settings.FRONTEND_URL}/wallet?status=failed&reason=expired"
+                )
+
+        # Idempotency.
         if tx.status == 'completed':
-            return redirect(f'{settings.FRONTEND_URL}/wallet?status=success')
-        if tx.status == 'failed':
-            return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed')
+            return redirect(
+                f"{settings.FRONTEND_URL}/wallet?status=success"
+            )
 
-        # 3. Call the verification function (Mock or Khalti API)
+        if tx.status == 'cancelled':
+            return redirect(
+                f"{settings.FRONTEND_URL}/wallet?status=cancelled"
+            )
+
+        if tx.status == 'failed':
+            return redirect(
+                f"{settings.FRONTEND_URL}/wallet?status=failed"
+            )
+
+        # ---------------------------------------------------------
+        # Verify with mock gateway.
+        # ---------------------------------------------------------
         try:
             response = verify_payment(pidx)
-        except Exception:
-            return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed')
+        except Exception as exc:
+            print("Payment verification error:", exc)
 
-        # 4. Atomic balance update if status is 'Completed'
+            tx.status = 'failed'
+            tx.save(update_fields=['status'])
+
+            return redirect(
+                f"{settings.FRONTEND_URL}/wallet?status=failed"
+            )
+
+        # ---------------------------------------------------------
+        # Successful payment.
+        # ---------------------------------------------------------
         if response.get('status') == 'Completed':
+
             with db_transaction.atomic():
-                # Lock row to prevent simultaneous race condition updates
-                tx_locked = Transaction.objects.select_for_update().get(pk=tx.pk)
 
-                if tx_locked.status != 'completed':
+                tx_locked = (
+                    Transaction.objects
+                    .select_for_update()
+                    .get(pk=tx.pk)
+                )
+
+                # Re-check status after acquiring the DB lock.
+                if tx_locked.status == 'pending':
+
                     tx_locked.status = 'completed'
-                    tx_locked.save()
+                    tx_locked.save(update_fields=['status'])
 
-                    # Safely increment wallet balance using F() expression
-                    tx_locked.user.__class__.objects.filter(pk=tx_locked.user.pk).update(
-                        wallet_balance=F('wallet_balance') + tx_locked.amount
+                    # Add the ORIGINAL NPR transaction amount.
+                    tx_locked.user.__class__.objects.filter(
+                        pk=tx_locked.user.pk
+                    ).update(
+                        wallet_balance=(
+                            F('wallet_balance') + tx_locked.amount
+                        )
                     )
 
-            return redirect(f'{settings.FRONTEND_URL}/wallet?status=success')
-        else:
-            tx.status = 'failed'
-            tx.save()
-            return redirect(f'{settings.FRONTEND_URL}/wallet?status=failed')
+            return redirect(
+                f"{settings.FRONTEND_URL}/wallet?status=success"
+            )
+
+        # ---------------------------------------------------------
+        # Gateway says payment wasn't completed.
+        # ---------------------------------------------------------
+        tx.status = 'failed'
+        tx.save(update_fields=['status'])
+
+        return redirect(
+            f"{settings.FRONTEND_URL}/wallet?status=failed"
+        )
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):

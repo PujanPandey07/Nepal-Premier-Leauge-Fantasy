@@ -167,6 +167,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.tasks.ingest_live_npl_matches',
         'schedule': 300.0,
     },
+    'fail-expired-pending-payments': {
+        'task': 'core.tasks.cancel_expired_pending_transactions',
+        'schedule': 30.0,
+    },
 }
 
 _cache_options = {

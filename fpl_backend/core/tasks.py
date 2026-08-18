@@ -1,3 +1,5 @@
+from datetime import timedelta
+from .models import Transaction
 import requests
 from .models import Match, Innings, Cricket_Team, Player, Player_Match_Performance
 from django.conf import settings
@@ -34,6 +36,22 @@ def send_welcome_email(user_id):
         )
     except User.DoesNotExist:
         pass
+
+
+@shared_task
+def cancel_expired_pending_transactions():
+    cutoff = timezone.now() - timedelta(minutes=2)
+
+    updated_count = (
+        Transaction.objects
+        .filter(
+            status='pending',
+            created_at__lt=cutoff
+        )
+        .update(status='failed')
+    )
+
+    return updated_count
 
 
 @shared_task
