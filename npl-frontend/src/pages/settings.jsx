@@ -11,7 +11,7 @@ export default function Settings() {
   const [favoritePlayers, setFavoritePlayers] = useState([])
   const [cricketTeams, setCricketTeams] = useState([])
   const [allPlayers, setAllPlayers] = useState([])
-  
+
   // UI states
   const [playerSearch, setPlayerSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -23,16 +23,19 @@ export default function Settings() {
     Promise.all([
       axiosInstance.get('/api/users/me/'),
       axiosInstance.get('/api/cricket-teams/'),
-      axiosInstance.get('/api/players/'),
+      axiosInstance.get('/api/players/?page_size=1000'),
     ])
       .then(([userRes, teamsRes, playersRes]) => {
         setUser(userRes.data)
         setTeamName(userRes.data.team_name || '')
         setFavoriteTeam(userRes.data.favorite_team || '')
         setFavoritePlayers(userRes.data.favorite_players || [])
-        setCricketTeams(teamsRes.data.results || teamsRes.data || [])
 
-        const players = (playersRes.data.results || playersRes.data || []).map((p) => ({
+        const teams = teamsRes.data.results || teamsRes.data || []
+        setCricketTeams(teams)
+
+        const rawPlayers = playersRes.data.results || playersRes.data || []
+        const players = rawPlayers.map((p) => ({
           ...p,
           credit_value: Number(p.credit_value) || 0,
         }))
@@ -87,13 +90,22 @@ export default function Settings() {
     }
   }
 
-  // Filter player list based on search term
-  const displayedPlayers = allPlayers
-    .filter((player) =>
-      player.name.toLowerCase().includes(playerSearch.toLowerCase()) ||
-      (player.role && player.role.toLowerCase().includes(playerSearch.toLowerCase()))
-    )
-    .sort((a, b) => b.credit_value - a.credit_value)
+  // 1. Sort all players by highest credit value
+  const sortedPlayers = [...allPlayers].sort((a, b) => b.credit_value - a.credit_value)
+
+  // 2. Default to top 10 highest-priced players, or search across all if query exists
+  const query = playerSearch.trim().toLowerCase()
+  const displayedPlayers = query
+    ? sortedPlayers.filter((player) => {
+        const nameMatch = player.name?.toLowerCase().includes(query)
+        const roleMatch = player.role?.toLowerCase().includes(query)
+        const teamMatch =
+          player.team_name?.toLowerCase().includes(query) ||
+          player.team?.name?.toLowerCase().includes(query)
+
+        return nameMatch || roleMatch || teamMatch
+      })
+    : sortedPlayers.slice(0, 10)
 
   if (loading) {
     return (
@@ -109,7 +121,6 @@ export default function Settings() {
     )
   }
 
-  // Map IDs to player objects for rendering badge previews
   const selectedPlayerObjs = favoritePlayers
     .map((id) => allPlayers.find((p) => p.id === id))
     .filter(Boolean)
@@ -133,10 +144,10 @@ export default function Settings() {
 
       <div className="mx-auto max-w-5xl px-6 py-8">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          
+
           {/* Left Column: Profile & Team Identity */}
           <div className="space-y-6">
-            
+
             {/* Account Details */}
             <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm">
               <h2 className="text-sm font-bold uppercase tracking-wider text-purple-950 mb-4">
@@ -240,7 +251,7 @@ export default function Settings() {
                   type="text"
                   value={playerSearch}
                   onChange={(e) => setPlayerSearch(e.target.value)}
-                  placeholder="Search player by name or role..."
+                  placeholder="Search player by name, role, or team..."
                   className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                 />
               </div>
@@ -250,6 +261,8 @@ export default function Settings() {
                 {displayedPlayers.length > 0 ? (
                   displayedPlayers.map((player) => {
                     const selected = favoritePlayers.includes(player.id)
+                    const teamDisplayName = player.team_name || player.team?.name || ''
+
                     return (
                       <button
                         key={player.id}
@@ -261,9 +274,16 @@ export default function Settings() {
                             : 'hover:bg-gray-50 text-gray-700 font-medium'
                         }`}
                       >
-                        <span>{player.name}</span>
+                        <div className="flex flex-col items-start text-left">
+                          <span className="font-semibold text-gray-900">{player.name}</span>
+                          {teamDisplayName && (
+                            <span className="text-[10px] text-gray-400 font-normal">
+                              {teamDisplayName}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 text-gray-400">
-                          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-gray-100 rounded">
+                          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
                             {player.role || 'Player'}
                           </span>
                           {player.credit_value > 0 && (

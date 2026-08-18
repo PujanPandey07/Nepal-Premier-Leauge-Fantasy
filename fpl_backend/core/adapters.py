@@ -1,9 +1,16 @@
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from allauth.account.adapter import DefaultAccountAdapter
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth import get_user_model
+from django.conf import settings
 import uuid
 
 User = get_user_model()
+
+
+class CustomAccountAdapter(DefaultAccountAdapter):
+    def get_email_confirmation_url(self, request, emailconfirmation):
+        return f"{settings.BACKEND_URL.rstrip('/')}/api/auth/verify-email/{emailconfirmation.key}/"
 
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
