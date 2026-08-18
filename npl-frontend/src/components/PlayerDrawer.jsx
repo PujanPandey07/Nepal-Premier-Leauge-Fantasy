@@ -23,7 +23,6 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
 
     const controller = new AbortController()
 
-    // Helper to safely convert numbers/objects to string IDs
     const getTeamId = (teamField) => {
       if (!teamField) return ''
       if (typeof teamField === 'object') return teamField.id ? String(teamField.id) : ''
@@ -35,7 +34,6 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
     const homeName = String(match.home_team_name || '').toLowerCase().trim()
     const awayName = String(match.away_team_name || '').toLowerCase().trim()
 
-    // Helper to automatically follow DRF next-page pagination links if locked by backend
     const fetchAllPages = async () => {
       let accumulated = []
       let nextUrl = `/api/players/?page_size=200`
@@ -53,7 +51,7 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
           nextUrl = null
         } else if (data.results) {
           accumulated = [...accumulated, ...data.results]
-          nextUrl = data.next // Automatically fetch page 2, 3... if DRF paginates
+          nextUrl = data.next
         } else {
           nextUrl = null
         }
@@ -65,23 +63,32 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
       .then((rawList) => {
         const matchPlayers = rawList.filter((p) => {
           const playerTeamId = getTeamId(p.team)
-          const playerTeamName = String(p.team_name || p.team || '').toLowerCase().trim()
+          const playerTeamName = String(p.team_name || p.team?.name || p.team || '').toLowerCase().trim()
 
-          // Allow player if ID or team name matches either home or away team
           const isHome = (homeId && playerTeamId === homeId) || (homeName && playerTeamName.includes(homeName))
           const isAway = (awayId && playerTeamId === awayId) || (awayName && playerTeamName.includes(awayName))
 
-          // If match team details are missing, return player by default
           if (!homeId && !awayId && !homeName && !awayName) return true
 
           return isHome || isAway
         })
 
         setPlayers(
-          matchPlayers.map((p) => ({
-            ...p,
-            credit_value: Number(p.credit_value),
-          }))
+          matchPlayers.map((p) => {
+            // Guarantee team_name field resolution
+            let resolvedTeamName = p.team_name || p.team?.name
+            if (!resolvedTeamName) {
+              const pId = getTeamId(p.team)
+              if (pId === homeId) resolvedTeamName = match.home_team_name
+              else if (pId === awayId) resolvedTeamName = match.away_team_name
+            }
+
+            return {
+              ...p,
+              team_name: resolvedTeamName || 'Team',
+              credit_value: Number(p.credit_value) || 0,
+            }
+          })
         )
       })
       .catch((err) => {
@@ -210,8 +217,12 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
                         <p className="text-xs sm:text-sm font-bold text-gray-900 group-hover:text-purple-700 transition-colors truncate">
                           {player.name}
                         </p>
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-0.5 flex-wrap">
                           <span className="font-semibold text-purple-700">{player.credit_value} Cr</span>
+                          <span>·</span>
+                          <span className="bg-purple-50 text-purple-900 font-bold px-1.5 py-0.5 rounded text-[10px] uppercase">
+                            {player.team_name}
+                          </span>
                           <span>·</span>
                           <span className="truncate bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-medium">
                             {player.role}
