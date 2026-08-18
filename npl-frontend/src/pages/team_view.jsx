@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/navbar'
-import { ROLE_LIMITS } from '../context/teamcontext'
+import { ROLE_LIMITS, getFantasyRole } from '../context/teamcontext'
 import axiosInstance from '../utilis/axiosInstance'
 import { fetchAllPages } from '../utilis/fetchAllPages'
 import { fetchMatchPlayerPoints } from '../utilis/fetchMatchPlayerPoints'
@@ -19,6 +19,14 @@ function getBuildableMatches(allMatches) {
   return openSorted.filter(
     (m) => new Date(m.match_date).toDateString() === earliestDay
   )
+}
+
+// Same shape as getTeamId in PlayerDrawer/PlayerDetailModal — handles both
+// plain id and nested team-object shapes coming back from the API.
+function getTeamId(teamField) {
+  if (!teamField) return ''
+  if (typeof teamField === 'object') return teamField.id ? String(teamField.id) : ''
+  return String(teamField)
 }
 
 export default function ViewTeam() {
@@ -89,14 +97,28 @@ export default function ViewTeam() {
 
           return Promise.all(
             rows.map((row) =>
-              axiosInstance.get(`/api/players/${row.player}/`).then((pRes) => ({
-                ...pRes.data,
-                credit_value: Number(pRes.data.credit_value),
-                _isCaptain: row.is_captain,
-                _isViceCaptain: row.is_vice_captain,
-                points_earned:
-                  pointsByPlayer[row.player] ?? row.points_earned ?? 0,
-              }))
+              axiosInstance.get(`/api/players/${row.player}/`).then((pRes) => {
+                const p = pRes.data
+                const pTeamId = getTeamId(p.team)
+                const homeId = getTeamId(currentMatch.home_team)
+                const awayId = getTeamId(currentMatch.away_team)
+
+                let resolvedTeamName = p.team_name || p.team?.name
+                if (!resolvedTeamName) {
+                  if (pTeamId === homeId) resolvedTeamName = currentMatch.home_team_name
+                  else if (pTeamId === awayId) resolvedTeamName = currentMatch.away_team_name
+                }
+
+                return {
+                  ...p,
+                  credit_value: Number(p.credit_value),
+                  team_name: resolvedTeamName || 'Squad Member',
+                  _isCaptain: row.is_captain,
+                  _isViceCaptain: row.is_vice_captain,
+                  points_earned:
+                    pointsByPlayer[row.player] ?? row.points_earned ?? 0,
+                }
+              })
             )
           )
         })
@@ -126,6 +148,13 @@ export default function ViewTeam() {
       p.id === captainId ? 2 : p.id === viceCaptainId ? 1.5 : 1
     return sum + Number(p.points_earned || 0) * multiplier
   }, 0)
+
+  // Prefer the match's own name fields (same source TeamBuilder uses);
+  // fall back to the id->name map fetched from /api/cricket-teams/.
+  const homeTeamLabel = (m) =>
+    m?.home_team_name || cricketTeams[getTeamId(m?.home_team)] || 'TBD'
+  const awayTeamLabel = (m) =>
+    m?.away_team_name || cricketTeams[getTeamId(m?.away_team)] || 'TBD'
 
   if (loadingList) {
     return (
@@ -178,9 +207,7 @@ export default function ViewTeam() {
             <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-md bg-white/10 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-emerald-300">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {currentMatch
-                ? `${cricketTeams[currentMatch.home_team] || 'TBD'} vs ${
-                    cricketTeams[currentMatch.away_team] || 'TBD'
-                  }`
+                ? `${homeTeamLabel(currentMatch)} vs ${awayTeamLabel(currentMatch)}`
                 : 'Match Preview'}
             </div>
             <h1 className="mt-1 text-xl sm:text-2xl font-black tracking-tight text-white truncate">
@@ -231,8 +258,7 @@ export default function ViewTeam() {
                     : 'bg-slate-800 text-gray-300 hover:bg-slate-700'
                 }`}
               >
-                {cricketTeams[m.home_team] || 'TBD'} vs{' '}
-                {cricketTeams[m.away_team] || 'TBD'}
+                {homeTeamLabel(m)} vs {awayTeamLabel(m)}
               </button>
             ))}
           </div>
@@ -287,7 +313,9 @@ export default function ViewTeam() {
 
               <div className="relative z-10 space-y-6 sm:space-y-8">
                 {Object.keys(ROLE_LIMITS).map((role) => {
-                  const playersInRole = squad.filter((p) => p.role === role)
+                  const playersInRole = squad.filter(
+                    (p) => getFantasyRole(p.role) === role
+                  )
                   if (playersInRole.length === 0) return null
 
                   return (
@@ -381,7 +409,7 @@ export default function ViewTeam() {
                   {selectedPlayer.name}
                 </h3>
                 <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
-                  {selectedPlayer.role} • {cricketTeams[selectedPlayer.team] || 'Squad Member'}
+                  {selectedPlayer.role} • {selectedPlayer.team_name || 'Squad Member'}
                 </p>
               </div>
               <button

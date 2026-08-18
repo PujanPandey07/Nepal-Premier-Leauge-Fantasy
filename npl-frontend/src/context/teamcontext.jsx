@@ -15,8 +15,8 @@ export const getFantasyRole = (role) => {
   if (!role) return 'Batsman'
   const r = String(role).toLowerCase().trim()
   if (r.includes('wicket') || r.includes('wk') || r.includes('keeper')) return 'Wicket-Keeper'
+  if (r.includes('all') || r.includes('round')) return 'All-Rounder'
   if (r.includes('bat')) return 'Batsman'
-  if (r.includes('all') || r.includes('ar') || r.includes('round')) return 'All-Rounder'
   if (r.includes('bowl') || r.includes('bwl')) return 'Bowler'
   return role
 }

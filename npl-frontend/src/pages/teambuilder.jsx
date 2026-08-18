@@ -13,7 +13,7 @@ function TeamBuilder() {
     isDeadlinePassed, match
   } = useContext(TeamContext)
   const [openRole, setOpenRole] = useState(null)
-  const [detailPlayerId, setDetailPlayerId] = useState(null)
+  const [detailPlayer, setDetailPlayer] = useState(null)
 
   useEffect(() => {
     if (matchId) {
@@ -139,7 +139,7 @@ function TeamBuilder() {
                     <div key={player.id} className="flex flex-col items-center w-[72px] sm:w-24 md:w-28 transition-transform hover:scale-105">
                       <div className="relative">
                         <button
-                          onClick={() => setDetailPlayerId(player.id)}
+                          onClick={() => setDetailPlayer(player)}
                           className="w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-slate-900 border sm:border-2 border-white/30 flex items-center justify-center text-white font-black text-sm sm:text-lg shadow-lg hover:border-emerald-400 transition-colors"
                         >
                           {player.name ? player.name.charAt(0) : '?'}
@@ -208,14 +208,15 @@ function TeamBuilder() {
         <PlayerDrawer
           role={openRole}
           onClose={() => setOpenRole(null)}
-          onSelectPlayer={(playerId) => setDetailPlayerId(playerId)}
+          onSelectPlayer={(player) => setDetailPlayer(player)}
         />
       )}
 
-      {detailPlayerId && (
+      {detailPlayer && (
         <PlayerDetailModal
-          playerId={detailPlayerId}
-          onClose={() => setDetailPlayerId(null)}
+          player={detailPlayer}
+          match={match}
+          onClose={() => setDetailPlayer(null)}
         />
       )}
     </div>

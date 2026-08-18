@@ -207,7 +207,7 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
                     className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-gray-50/80 transition-colors gap-3"
                   >
                     <button
-                      onClick={() => onSelectPlayer(player.id)}
+                      onClick={() => onSelectPlayer(player)}
                       className="text-left flex items-center gap-3 min-w-0 flex-1 group"
                     >
                       <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 font-extrabold text-xs shrink-0 group-hover:border-purple-300 group-hover:bg-purple-50 group-hover:text-purple-700 transition-colors">
