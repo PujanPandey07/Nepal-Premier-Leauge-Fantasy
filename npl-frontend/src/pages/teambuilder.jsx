@@ -1,6 +1,6 @@
 import { useState, useContext, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { TeamContext, ROLE_LIMITS, getFantasyRole } from '../context/teamcontext'
+import { TeamContext, ROLE_LIMITS, getFantasyRole } from '../context/TeamContext'
 import Navbar from '../components/navbar'
 import PlayerDrawer from '../components/PlayerDrawer'
 import PlayerDetailModal from '../components/PlayerDetailModal'
@@ -16,10 +16,15 @@ function TeamBuilder() {
   const [detailPlayerId, setDetailPlayerId] = useState(null)
 
   useEffect(() => {
-    loadMatch(matchId)
+    if (matchId) {
+      loadMatch(matchId)
+    }
   }, [matchId])
 
-  const totalCredits = selectedPlayers.reduce((sum, player) => sum + player.credit_value, 0)
+  const totalCredits = selectedPlayers.reduce(
+    (sum, player) => sum + (Number(player.credit_value) || 0),
+    0
+  )
 
   const handleRemove = async (playerId) => {
     const result = await removePlayer(playerId)
@@ -62,6 +67,7 @@ function TeamBuilder() {
     <div className="min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
       <Navbar />
 
+      {/* MATCH INFO BANNER */}
       {match && (
         <div className="bg-slate-900 text-white px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-700">
           <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">
@@ -86,6 +92,7 @@ function TeamBuilder() {
         </div>
       )}
 
+      {/* STATS STRIP */}
       <div className="bg-slate-900 text-white px-4 sm:px-6 py-2.5 sm:py-3 flex justify-between items-center border-b border-slate-800">
         <div>
           <p className="text-[10px] sm:text-xs text-gray-400 font-semibold uppercase tracking-wider">Players</p>
@@ -97,12 +104,14 @@ function TeamBuilder() {
         </div>
       </div>
 
+      {/* PITCH AREA */}
       <div
         className="relative p-3 sm:p-6 md:p-8 overflow-hidden w-full min-h-screen"
         style={{
           background: 'repeating-linear-gradient(180deg, #15803d 0px, #15803d 40px, #166534 40px, #166534 80px)'
         }}
       >
+        {/* Pitch Boundary Lines */}
         <div
           className="pointer-events-none absolute border sm:border-2 border-white/30 rounded-[50%]"
           style={{ top: '2%', left: '2%', width: '96%', height: '96%' }}
@@ -114,7 +123,9 @@ function TeamBuilder() {
 
         <div className="relative z-10 max-w-5xl mx-auto">
           {Object.entries(ROLE_LIMITS).map(([role, limit]) => {
-            const playersInRole = selectedPlayers.filter(p => getFantasyRole(p.role) === role)
+            const playersInRole = selectedPlayers.filter(
+              p => getFantasyRole(p.role) === role
+            )
             const emptySlots = limit - playersInRole.length
 
             return (
@@ -133,12 +144,12 @@ function TeamBuilder() {
                         >
                           {player.name ? player.name.charAt(0) : '?'}
                         </button>
-                        {player.id === captainId && (
+                        {String(player.id) === String(captainId) && (
                           <span className="absolute -top-1 -right-1 bg-amber-400 text-slate-950 border border-slate-950 rounded-full w-4 h-4 sm:w-5 sm:h-5 text-[9px] sm:text-[10px] font-black flex items-center justify-center shadow-md">
                             C
                           </span>
                         )}
-                        {player.id === viceCaptainId && (
+                        {String(player.id) === String(viceCaptainId) && (
                           <span className="absolute -top-1 -right-1 bg-sky-400 text-slate-950 border border-slate-950 rounded-full w-4 h-4 sm:w-5 sm:h-5 text-[9px] sm:text-[10px] font-black flex items-center justify-center shadow-md">
                             VC
                           </span>
@@ -159,7 +170,7 @@ function TeamBuilder() {
                     </div>
                   ))}
 
-                  {Array.from({ length: emptySlots }).map((_, i) => (
+                  {Array.from({ length: Math.max(0, emptySlots) }).map((_, i) => (
                     <button
                       key={i}
                       onClick={() => setOpenRole(role)}
