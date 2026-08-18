@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ROLE_LIMITS } from '../context/teamcontext'
+import { ROLE_LIMITS, getFantasyRole } from '../context/teamcontext'
 import axiosInstance from '../utilis/axiosInstance'
 import { fetchAllPages } from '../utilis/fetchAllPages'
 import { fetchMatchPlayerPoints } from '../utilis/fetchMatchPlayerPoints'
@@ -174,7 +174,7 @@ export default function ViewPoints() {
         </div>
         <div className="text-right">
           <p className="text-[10px] uppercase tracking-wider text-gray-400">Match Points</p>
-          <p className="text-xl sm:text-2xl font-black text-emerald-400">{currentTeamMatchPoints}</p>
+          <p className="text-xl sm:text-2xl font-black text-emerald-400">{currentTeamMatchPoints.toFixed(1)}</p>
         </div>
       </div>
 
@@ -223,7 +223,8 @@ export default function ViewPoints() {
 
           <div className="relative z-10 max-w-5xl mx-auto space-y-6 sm:space-y-8">
             {Object.keys(ROLE_LIMITS).map((role) => {
-              const playersInRole = squad.filter((p) => p.role === role)
+              // Normalize p.role so it matches key in ROLE_LIMITS
+              const playersInRole = squad.filter((p) => getFantasyRole(p.role) === role)
               if (playersInRole.length === 0) return null
 
               return (
@@ -245,7 +246,7 @@ export default function ViewPoints() {
                               {player.name ? player.name.charAt(0) : '?'}
                             </span>
                             <span className="mt-0.5 sm:mt-1 w-full bg-slate-900 text-center text-[9px] sm:text-[10px] font-bold leading-3 sm:leading-4 text-emerald-400">
-                              {player.effective_points} pts
+                              {player.effective_points.toFixed(1)} pts
                             </span>
                           </div>
 
@@ -278,7 +279,10 @@ export default function ViewPoints() {
 
       {/* Player Points Breakdown Modal */}
       {selectedPlayer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs transition-opacity">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs transition-opacity"
+          onClick={() => setSelectedPlayer(null)}
+        >
           <div
             className="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-xs w-full shadow-2xl relative text-white animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
@@ -335,12 +339,11 @@ export default function ViewPoints() {
               <div className="flex justify-between items-center pt-2 text-sm font-bold">
                 <span className="text-slate-200">Total Match Points</span>
                 <span className="font-mono text-emerald-400 text-base">
-                  {selectedPlayer.effective_points} pts
+                  {selectedPlayer.effective_points.toFixed(1)} pts
                 </span>
               </div>
             </div>
 
-            {/* Footer Notice */}
             <button
               onClick={() => setSelectedPlayer(null)}
               className="mt-5 w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2 rounded-xl transition-colors"
