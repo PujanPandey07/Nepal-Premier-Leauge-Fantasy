@@ -23,29 +23,58 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
 
     const controller = new AbortController()
 
-    // Fetch players with high page_size to avoid pagination cutting off Team 2
-    axiosInstance
-      .get(`/api/players/?page_size=200`, { signal: controller.signal })
-      .then((res) => {
-        const rawList = res.data.results || res.data
+    // Helper to safely convert numbers/objects to string IDs
+    const getTeamId = (teamField) => {
+      if (!teamField) return ''
+      if (typeof teamField === 'object') return teamField.id ? String(teamField.id) : ''
+      return String(teamField)
+    }
 
-        // Extract team identifiers safely whether string, number, or object
-        const homeId = typeof match.home_team === 'object' ? match.home_team?.id : match.home_team
-        const awayId = typeof match.away_team === 'object' ? match.away_team?.id : match.away_team
-        const homeName = match.home_team_name || match.home_team
-        const awayName = match.away_team_name || match.away_team
+    const homeId = getTeamId(match.home_team)
+    const awayId = getTeamId(match.away_team)
+    const homeName = String(match.home_team_name || '').toLowerCase().trim()
+    const awayName = String(match.away_team_name || '').toLowerCase().trim()
 
-        // Keep players that match either home or away team
+    // Helper to automatically follow DRF next-page pagination links if locked by backend
+    const fetchAllPages = async () => {
+      let accumulated = []
+      let nextUrl = `/api/players/?page_size=200`
+
+      if (homeId && awayId) {
+        nextUrl += `&teams=${homeId},${awayId}`
+      }
+
+      while (nextUrl) {
+        const res = await axiosInstance.get(nextUrl, { signal: controller.signal })
+        const data = res.data
+
+        if (Array.isArray(data)) {
+          accumulated = data
+          nextUrl = null
+        } else if (data.results) {
+          accumulated = [...accumulated, ...data.results]
+          nextUrl = data.next // Automatically fetch page 2, 3... if DRF paginates
+        } else {
+          nextUrl = null
+        }
+      }
+      return accumulated
+    }
+
+    fetchAllPages()
+      .then((rawList) => {
         const matchPlayers = rawList.filter((p) => {
-          if (!homeId && !homeName) return true
-          
-          const playerTeamId = typeof p.team === 'object' ? p.team?.id : p.team
-          const playerTeamName = p.team_name || p.team
+          const playerTeamId = getTeamId(p.team)
+          const playerTeamName = String(p.team_name || p.team || '').toLowerCase().trim()
 
-          const matchesHome = (homeId && playerTeamId === homeId) || (homeName && playerTeamName === homeName)
-          const matchesAway = (awayId && playerTeamId === awayId) || (awayName && playerTeamName === awayName)
+          // Allow player if ID or team name matches either home or away team
+          const isHome = (homeId && playerTeamId === homeId) || (homeName && playerTeamName.includes(homeName))
+          const isAway = (awayId && playerTeamId === awayId) || (awayName && playerTeamName.includes(awayName))
 
-          return matchesHome || matchesAway
+          // If match team details are missing, return player by default
+          if (!homeId && !awayId && !homeName && !awayName) return true
+
+          return isHome || isAway
         })
 
         setPlayers(
@@ -56,7 +85,7 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
         )
       })
       .catch((err) => {
-        if (err.name !== 'CanceledError') {
+        if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
           console.error('Error fetching players:', err)
         }
       })
@@ -74,7 +103,6 @@ export default function PlayerDrawer({ role, onClose, onSelectPlayer }) {
     }
   }
 
-  // Filter role and search term locally
   const filteredPlayers = players.filter((player) => {
     const matchesRole = getFantasyRole(player.role) === getFantasyRole(role)
     const matchesSearch = player.name
