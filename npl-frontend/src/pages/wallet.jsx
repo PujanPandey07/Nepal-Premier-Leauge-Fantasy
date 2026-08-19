@@ -1,222 +1,169 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import axiosInstance from '../utilis/axiosInstance'
 
-export default function MockPayment() {
-    const navigate = useNavigate()
+export default function Wallet() {
+    const [searchParams, setSearchParams] = useSearchParams()
 
-    const params = new URLSearchParams(window.location.search)
+    const [balance, setBalance] = useState(null)
+    const [amount, setAmount] = useState('')
+    const [loadingBalance, setLoadingBalance] = useState(true)
+    const [initiating, setInitiating] = useState(false)
+    const [error, setError] = useState('')
+    const [message, setMessage] = useState('')
 
-    const pidx = params.get('pidx')
-    const rawAmount = params.get('amount')
+    // ── Fetch current wallet balance on load ──
+    const fetchBalance = async () => {
+        setLoadingBalance(true)
+        try {
+            // NOTE: adjust this endpoint if your actual balance route differs
+            const res = await axiosInstance.get('/api/wallet/')
+            setBalance(res.data.wallet_balance)
+        } catch (err) {
+            console.error('Failed to fetch wallet balance:', err)
+        } finally {
+            setLoadingBalance(false)
+        }
+    }
 
-    // Amount in the URL is paisa.
-    const amountNPR = rawAmount
-        ? Number(rawAmount) / 100
-        : 0
+    useEffect(() => {
+        fetchBalance()
+    }, [])
 
-    const [paying, setPaying] = useState(false)
-    const [failed, setFailed] = useState(false)
-    const [selectedMethod, setSelectedMethod] = useState(0)
+    // ── Handle redirect back from mock payment / verify view ──
+    useEffect(() => {
+        const status = searchParams.get('status')
+        const reason = searchParams.get('reason')
 
-    const apiBaseUrl =
-        axiosInstance.defaults.baseURL || ''
+        if (!status) return
 
-    const handlePay = () => {
-        if (!pidx) {
-            setFailed(true)
+        if (status === 'success') {
+            setMessage('Payment successful! Your wallet has been topped up.')
+            fetchBalance()
+        } else if (status === 'cancelled') {
+            setMessage(
+                reason === 'expired'
+                    ? 'Payment session expired. Please try again.'
+                    : 'Payment cancelled.'
+            )
+        } else if (status === 'failed') {
+            const reasonText = {
+                missing_pidx: 'Payment reference was missing.',
+                transaction_not_found: 'Transaction could not be found.',
+                expired: 'Payment session expired.',
+            }
+            setError(reasonText[reason] || 'Payment failed. Please try again.')
+        }
+
+        // Clear query params so refreshing the page doesn't re-trigger the message
+        setSearchParams({}, { replace: true })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    // ── Initiate a new top-up ──
+    const handleTopUp = async (e) => {
+        e.preventDefault()
+        setError('')
+        setMessage('')
+
+        const nprAmount = Number(amount)
+
+        if (!amount || isNaN(nprAmount) || nprAmount <= 0) {
+            setError('Please enter a valid amount.')
             return
         }
 
-        setPaying(true)
+        if (nprAmount < 10) {
+            setError('Minimum top-up amount is Rs 10.')
+            return
+        }
 
-        const verifyEndpoint =
-            `/api/payments/verify/?pidx=${encodeURIComponent(pidx)}`
+        setInitiating(true)
 
-        const fullUrl = apiBaseUrl
-            ? `${apiBaseUrl.replace(/\/$/, '')}${verifyEndpoint}`
-            : verifyEndpoint
+        try {
+            const res = await axiosInstance.post('/api/payments/initiate/', {
+                amount: nprAmount,
+            })
 
-        window.location.href = fullUrl
-    }
+            const paymentUrl = res.data.payment_url
 
-    const handleCancel = () => {
-        navigate('/wallet?status=cancelled')
-    }
+            if (!paymentUrl) {
+                setError('Could not start payment. Please try again.')
+                setInitiating(false)
+                return
+            }
 
-    // Auto-cancel the mock payment UI after 2 minutes.
-    useEffect(() => {
-        if (!pidx) return
+            // Redirect browser to the mock Khalti payment page
+            window.location.href = paymentUrl
 
-        const timer = setTimeout(() => {
-            navigate('/wallet?status=cancelled&reason=expired')
-        }, 120000)
-
-        return () => clearTimeout(timer)
-    }, [pidx, navigate])
-
-    if (!pidx || isNaN(amountNPR) || amountNPR <= 0) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
-                <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
-
-                    <p className="mb-1 font-semibold text-red-600">
-                        Invalid Payment Parameters
-                    </p>
-
-                    <p className="mb-5 text-xs text-gray-500">
-                        Missing or invalid transaction credentials.
-                    </p>
-
-                    <button
-                        onClick={handleCancel}
-                        className="w-full rounded-xl bg-gray-800 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-900"
-                    >
-                        Return to Wallet
-                    </button>
-
-                </div>
-            </div>
-        )
+        } catch (err) {
+            const detail = err.response?.data?.detail
+            setError(detail || 'Something went wrong. Please try again.')
+            setInitiating(false)
+        }
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
-
+        <div className="flex min-h-screen items-start justify-center bg-gray-100 p-4 pt-16">
             <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-lg">
 
                 {/* Header */}
-                <div className="flex items-center gap-3 bg-purple-600 px-6 py-5">
-
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm">
-                        <span className="text-lg font-black text-purple-600">
-                            K
-                        </span>
-                    </div>
-
-                    <div>
-                        <p className="text-lg font-bold leading-tight text-white">
-                            Khalti
-                        </p>
-
-                        <p className="text-xs text-purple-200">
-                            Digital Wallet & Payment
-                        </p>
-                    </div>
-
+                <div className="bg-purple-600 px-6 py-5">
+                    <p className="text-lg font-bold text-white">My Wallet</p>
+                    <p className="text-xs text-purple-200">NPL Fantasy Cricket</p>
                 </div>
 
                 <div className="p-6">
 
-                    {/* Merchant */}
-                    <div className="mb-5 rounded-xl border border-gray-100 bg-gray-50 p-4">
-
-                        <p className="mb-0.5 text-xs text-gray-500">
-                            Paying to
-                        </p>
-
-                        <p className="font-semibold text-gray-800">
-                            NPL Fantasy Cricket
-                        </p>
-
-                        <p className="mt-0.5 text-xs text-gray-400">
-                            Wallet Top Up
-                        </p>
-
-                    </div>
-
-                    {/* Amount */}
-                    <div className="mb-6 text-center">
-
-                        <p className="mb-1 text-xs text-gray-500">
-                            Total Amount
-                        </p>
-
+                    {/* Balance */}
+                    <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4 text-center">
+                        <p className="mb-1 text-xs text-gray-500">Current Balance</p>
                         <p className="text-3xl font-bold text-gray-800">
-                            NPR {amountNPR.toFixed(2)}
+                            {loadingBalance
+                                ? '...'
+                                : `NPR ${Number(balance ?? 0).toFixed(2)}`}
                         </p>
-
                     </div>
 
-                    {/* Payment methods */}
-                    <div className="mb-6 space-y-2">
-
-                        <p className="mb-2 text-xs font-medium text-gray-500">
-                            Pay via
+                    {/* Status messages from redirect */}
+                    {message && (
+                        <p className="mb-4 rounded-lg bg-green-50 p-3 text-center text-sm text-green-700">
+                            {message}
                         </p>
-
-                        {[
-                            'Khalti Wallet',
-                            'eBanking',
-                            'Mobile Banking'
-                        ].map((method, i) => (
-
-                            <div
-                                key={method}
-                                onClick={() => setSelectedMethod(i)}
-                                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-                                    selectedMethod === i
-                                        ? 'border-purple-500 bg-purple-50/50'
-                                        : 'border-gray-200 hover:bg-gray-50'
-                                }`}
-                            >
-
-                                <div
-                                    className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                                        selectedMethod === i
-                                            ? 'border-purple-500'
-                                            : 'border-gray-300'
-                                    }`}
-                                >
-                                    {selectedMethod === i && (
-                                        <div className="h-2 w-2 rounded-full bg-purple-500" />
-                                    )}
-                                </div>
-
-                                <p className="text-sm font-medium text-gray-700">
-                                    {method}
-                                </p>
-
-                            </div>
-
-                        ))}
-
-                    </div>
-
-                    {failed && (
-                        <p className="mb-3 text-center text-xs text-red-500">
-                            Payment verification failed. Please try again or cancel.
+                    )}
+                    {error && (
+                        <p className="mb-4 rounded-lg bg-red-50 p-3 text-center text-sm text-red-600">
+                            {error}
                         </p>
                     )}
 
-                    {/* Pay */}
-                    <button
-                        onClick={handlePay}
-                        disabled={paying}
-                        className="mb-3 w-full rounded-xl bg-purple-600 py-3 font-semibold text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
-                    >
-                        {paying
-                            ? 'Processing...'
-                            : `Pay NPR ${amountNPR.toFixed(2)}`}
-                    </button>
+                    {/* Top-up form */}
+                    <form onSubmit={handleTopUp}>
+                        <label className="mb-2 block text-xs font-medium text-gray-500">
+                            Add Money (NPR)
+                        </label>
+                        <input
+                            type="number"
+                            min="10"
+                            step="1"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            placeholder="Enter amount"
+                            disabled={initiating}
+                            className="mb-4 w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-purple-500 focus:outline-none disabled:opacity-50"
+                        />
 
-                    {/* Cancel */}
-                    <button
-                        onClick={handleCancel}
-                        disabled={paying}
-                        className="w-full rounded-xl border border-gray-300 py-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
-                    >
-                        Cancel
-                    </button>
-
-                    <p className="mt-4 text-center text-xs text-gray-400">
-                        🔒 Simulated payment environment for testing
-                    </p>
+                        <button
+                            type="submit"
+                            disabled={initiating}
+                            className="w-full rounded-xl bg-purple-600 py-3 font-semibold text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
+                        >
+                            {initiating ? 'Redirecting...' : 'Add Money'}
+                        </button>
+                    </form>
 
                 </div>
-
             </div>
-
         </div>
     )
 }
