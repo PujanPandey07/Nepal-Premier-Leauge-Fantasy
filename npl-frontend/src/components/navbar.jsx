@@ -103,13 +103,14 @@ function Navbar() {
         <div className="flex lg:hidden items-center gap-3">
           {isLoggedIn && (
             <Link
-              to="/wallet"
-              onClick={closeMenu}
-              className="flex items-center gap-1 bg-slate-800 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700"
-            >
-              <span className="text-yellow-400 font-bold">NPR</span>
-              <span>{balance !== null ? Number(balance).toFixed(2) : '...'}</span>
-            </Link>
+  to="/wallet"
+  className="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-700 transition-colors"
+>
+  <span className="font-medium">My Wallet</span>
+  <span className="text-yellow-400 font-bold">
+    NPR {balance !== null ? Number(balance).toFixed(2) : '...'}
+  </span>
+</Link>
           )}
 
           <button
