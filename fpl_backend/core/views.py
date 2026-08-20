@@ -1,5 +1,10 @@
 from .models import Transaction
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
+from django.db import transaction as db_transaction
+from .serializers import normalize_role
 from django.db.models import F
 from django.db import transaction as db_transaction
 from decimal import Decimal, InvalidOperation
@@ -186,15 +191,103 @@ class FantasyTeamView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        # Restrict standard endpoints so users only see their own teams
         return Fantasy_Team.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        match_id = self.request.data.get('match')
-        match = get_object_or_404(Match, pk=match_id)
+        # Only create the empty "shell" of a team if it doesn't already exist for this match
+        match = serializer.validated_data.get('match')
+
+        # Check deadline before even creating the shell team
         if timezone.now() > match.match_date - timedelta(minutes=30):
-            raise ValidationError(
-                'Deadline passed, team cannot be created.')
-        serializer.save(user=self.request.user)
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError('Deadline passed, team cannot be created.')
+
+        serializer.save(
+            user=self.request.user,
+            total_points=0,
+            remaining_budget=serializer.validated_data['tournament'].budget_cap
+        )
+
+    @action(detail=True, methods=['post'], url_path='update-roster')
+    def update_roster(self, request, pk=None):
+        fantasy_team = self.get_object()
+
+        # 1. Deadline Check
+        match = fantasy_team.match
+        if timezone.now() > match.match_date - timedelta(minutes=30):
+            return Response({'detail': 'Deadline passed, team cannot be updated.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        player_ids = request.data.get('players', [])
+        captain_id = request.data.get('captain_id')
+        vice_captain_id = request.data.get('vice_captain_id')
+
+        # 2. Strict exactly-11 validation
+        if len(player_ids) != 11:
+            return Response({'detail': 'Team must have exactly 11 players.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not captain_id or not vice_captain_id:
+            return Response({'detail': 'Captain and Vice-Captain are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if str(captain_id) == str(vice_captain_id):
+            return Response({'detail': 'Captain and Vice-Captain cannot be the same player.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        players = Player.objects.filter(id__in=player_ids)
+        if players.count() != 11:
+            return Response({'detail': 'One or more invalid players selected.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 3. Budget Check
+        total_cost = sum(p.credit_value for p in players)
+        if total_cost > fantasy_team.tournament.budget_cap:
+            return Response({'detail': 'Exceeds budget cap.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 4. Max 7 per team check
+        team_counts = {}
+        for p in players:
+            team_counts[p.team_id] = team_counts.get(p.team_id, 0) + 1
+            if team_counts[p.team_id] > 7:
+                return Response({'detail': 'Maximum 7 players from a single team allowed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 5. Role strict composition check
+        roles_count = {'Batsman': 0, 'Bowler': 0,
+                       'All-Rounder': 0, 'Wicket-Keeper': 0}
+        for p in players:
+            role_key = normalize_role(p.role)
+            roles_count[role_key] = roles_count.get(role_key, 0) + 1
+
+        required_roles = {'Batsman': 3, 'Bowler': 3,
+                          'All-Rounder': 4, 'Wicket-Keeper': 1}
+        for role, min_count in required_roles.items():
+            if roles_count.get(role, 0) < min_count:
+                return Response({'detail': f'Must have at least {min_count} {role}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 6. Verify C and VC are actually in the chosen 11
+        player_ids_str = [str(pid) for pid in player_ids]
+        if str(captain_id) not in player_ids_str or str(vice_captain_id) not in player_ids_str:
+            return Response({'detail': 'Captain and Vice Captain must be in the selected team.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 7. Atomic db swap
+        with db_transaction.atomic():
+            # Delete old roster entirely (if any)
+            Fantasy_Team_Player.objects.filter(
+                fantasy_team=fantasy_team).delete()
+
+            # Create new 11-player roster
+            new_roster = [
+                Fantasy_Team_Player(
+                    fantasy_team=fantasy_team,
+                    player=p,
+                    is_captain=(str(p.id) == str(captain_id)),
+                    is_vice_captain=(str(p.id) == str(vice_captain_id))
+                ) for p in players
+            ]
+            Fantasy_Team_Player.objects.bulk_create(new_roster)
+
+            # Update team budget metadata
+            fantasy_team.remaining_budget = fantasy_team.tournament.budget_cap - total_cost
+            fantasy_team.save()
+
+        return Response({'detail': 'Team roster updated successfully.'}, status=status.HTTP_200_OK)
 
 
 class FantasyTeamPlayerView(viewsets.ModelViewSet):
@@ -202,6 +295,7 @@ class FantasyTeamPlayerView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        # Good, this protects GET, PATCH, and DELETE from cross-user access
         return Fantasy_Team_Player.objects.filter(
             fantasy_team__user=self.request.user
         )
@@ -209,10 +303,23 @@ class FantasyTeamPlayerView(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         fantasy_team_id = self.request.data.get('fantasy_team')
         fantasy_team = get_object_or_404(Fantasy_Team, pk=fantasy_team_id)
+
+        # 🔒 ADD THIS: Ownership Check
+        if fantasy_team.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You do not own this fantasy team.")
+
         match = fantasy_team.match
         if timezone.now() > match.match_date - timedelta(minutes=30):
             raise ValidationError('Deadline passed, players cannot be added.')
         serializer.save()
+
+    def perform_destroy(self, instance):
+        match = instance.fantasy_team.match
+        if timezone.now() > match.match_date - timedelta(minutes=30):
+            raise ValidationError(
+                'Deadline passed, players cannot be removed.')
+        instance.delete()
 
 
 class LeagueView(viewsets.ModelViewSet):
@@ -342,7 +449,7 @@ class LeagueMemberView(viewsets.ModelViewSet):
         my_league_ids = LeagueMember.objects.filter(
             user=self.request.user
         ).values_list('league_id', flat=True)
-        return LeagueMember.objects.filter(league_id__in=my_league_ids)
+        return LeagueMember.objects.filter(league_id__in=my_league_ids).order_by('league_id', 'ranking')
 
 
 class InitiatePaymentView(APIView):
@@ -753,8 +860,10 @@ class TournamentLeaderboardView(APIView):
         results = []
         current_rank = 0
         previous_points = None
+        
+        start_idx = paginator.page.start_index() if page else 1
 
-        for idx, user_obj in enumerate(items, start=1):
+        for idx, user_obj in enumerate(items, start=start_idx):
             if user_obj.total_fantasy_points != previous_points:
                 current_rank = idx
                 previous_points = user_obj.total_fantasy_points
@@ -763,7 +872,6 @@ class TournamentLeaderboardView(APIView):
                 'id': user_obj.id,
                 'rank': current_rank,
                 'name': user_obj.name,
-                'email': user_obj.email,
                 'total_fantasy_points': str(user_obj.total_fantasy_points),
                 'teams_played': user_obj.teams_played,
             })

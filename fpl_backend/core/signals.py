@@ -127,7 +127,7 @@ def update_league_rankings(sender, instance, **kwargs):
         for league in leagues:
             league_members = LeagueMember.objects.filter(
                 league=league
-            ).order_by('-points')
+            ).order_by('-points', 'joined_at', 'id')
 
             for rank, member in enumerate(league_members, start=1):
                 LeagueMember.objects.filter(

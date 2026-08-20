@@ -186,9 +186,16 @@ function TeamBuilder() {
 
           {savedTeamId ? (
             <div className="text-center mt-6 sm:mt-8 pb-8">
-              <p className="text-emerald-300 text-xs sm:text-sm font-semibold bg-slate-900/80 px-4 py-2 rounded-xl inline-block border border-emerald-500/30 backdrop-blur-sm shadow-md">
-                ✓ Team saved — changes sync automatically
-              </p>
+              {/* 🔒 ADD THIS: Conditionally show success or warning based on count */}
+              {selectedPlayers.length === 11 ? (
+                <p className="text-emerald-300 text-xs sm:text-sm font-semibold bg-slate-900/80 px-4 py-2 rounded-xl inline-block border border-emerald-500/30 backdrop-blur-sm shadow-md">
+                  ✓ Team Complete & Saved 
+                </p>
+              ) : (
+                <p className="text-red-400 text-xs sm:text-sm font-semibold bg-slate-900/80 px-4 py-2 rounded-xl inline-block border border-red-500/30 backdrop-blur-sm shadow-md">
+                  Your team is incomplete ({selectedPlayers.length}/11). It MUST have 11 players before the deadline to score points.
+                </p>
+              )}
             </div>
           ) : (
             <div className="text-center mt-6 sm:mt-8 pb-8">

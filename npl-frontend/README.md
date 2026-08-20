@@ -1,16 +1,34 @@
-# React + Vite
+# NPL Fantasy Frontend 🏏
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A blazing-fast Single Page Application (SPA) built with **React** and **Vite** for the Nepal Premier League Fantasy Cricket platform. 
 
-Currently, two official plugins are available:
+## 📌 Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+This highly interactive React application provides the user interface for drafting fantasy teams, challenging friends in private leagues, tracking live leaderboards, and managing wallet transactions.
 
-## React Compiler
+- **State Management:** Custom React Contexts (`AuthContext` and `TeamContext`) handle session lifecycles and draft validation (like budgets and role caps) locally.
+- **Draft & Submit Architecture:** The team builder UI acts as an in-memory draft board, sending changes to the database in a single atomic transaction only upon saving.
+- **Security-First Requests:** Automated Axios interceptors handle silent token refreshing (via HttpOnly cookies) on `401 Unauthorized` responses seamlessly in the background.
+- **Responsive Design:** Completely mobile-optimized UI tailored with **TailwindCSS**.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Setup Instructions
 
-## Expanding the ESLint configuration
+### 1. Install Dependencies
+```bash
+npm install
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 2. Configure Environment
+If your backend is running on a port other than `http://localhost:8000`, or if you are preparing for production, configure the `baseURL` within your Axios config, or set up a `.env` file accordingly.
+
+### 3. Run Development Server
+```bash
+npm run dev
+```
+The application will be available at `http://localhost:5173`.
+
+### 4. Build for Production
+```bash
+npm run build
+```
+*The `dist/` folder will contain the optimized, minified bundle ready to be served by Nginx or deployed to Vercel/Netlify.*

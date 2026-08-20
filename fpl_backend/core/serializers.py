@@ -379,5 +379,5 @@ class GlobalLeaderboardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'rank', 'name', 'email',
+        fields = ['id', 'rank', 'name', 
                   'total_fantasy_points', 'teams_played']

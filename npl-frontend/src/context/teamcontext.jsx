@@ -28,7 +28,8 @@ export function TeamProvider({ children }) {
   const [captainId, setCaptainId] = useState(null)
   const [viceCaptainId, setViceCaptainId] = useState(null)
   const [savedTeamId, setSavedTeamId] = useState(null)
-  const [teamPlayerRowIds, setTeamPlayerRowIds] = useState({})
+  
+  // Note: teamPlayerRowIds is no longer needed since we aren't editing rows one by one.
 
   const isDeadlinePassed = match
     ? new Date() > new Date(new Date(match.match_date).getTime() - 30 * 60 * 1000)
@@ -48,6 +49,7 @@ export function TeamProvider({ children }) {
       .catch(error => console.error('Error fetching match:', error))
   }
 
+  // Load Existing Team when match loads
   useEffect(() => {
     if (!match) return
 
@@ -55,7 +57,6 @@ export function TeamProvider({ children }) {
     setCaptainId(null)
     setViceCaptainId(null)
     setSavedTeamId(null)
-    setTeamPlayerRowIds({})
 
     axiosInstance.get('/api/fantasy-teams/')
       .then(res => {
@@ -76,7 +77,6 @@ export function TeamProvider({ children }) {
                   .then(pRes => ({
                     ...pRes.data,
                     credit_value: Number(pRes.data.credit_value) || 0,
-                    _rowId: row.id,
                     _isCaptain: row.is_captain,
                     _isViceCaptain: row.is_vice_captain,
                     points_earned: row.points_earned,
@@ -87,9 +87,6 @@ export function TeamProvider({ children }) {
           .then(players => {
             if (!players) return
             setSelectedPlayers(players)
-            const rowIdMap = {}
-            players.forEach(p => { rowIdMap[p.id] = p._rowId })
-            setTeamPlayerRowIds(rowIdMap)
             const existingCaptain = players.find(p => p._isCaptain)
             const existingViceCaptain = players.find(p => p._isViceCaptain)
             if (existingCaptain) setCaptainId(existingCaptain.id)
@@ -127,40 +124,14 @@ export function TeamProvider({ children }) {
       return { success: false, error: 'Team is already full' }
     }
 
+    // Only update Local State (Draft Mode)
     const normalizedPlayer = { ...player, role: playerRole, credit_value: playerCredit }
-
-    if (savedTeamId) {
-      try {
-        const res = await axiosInstance.post(
-          '/api/fantasy-team-players/',
-          { fantasy_team: savedTeamId, player: player.id, is_captain: false, is_vice_captain: false }
-        )
-        setTeamPlayerRowIds(prev => ({ ...prev, [player.id]: res.data.id }))
-      } catch (error) {
-        const backendError = error.response?.data
-        return { success: false, error: typeof backendError === 'object' ? Object.values(backendError)[0] : 'Failed to add player' }
-      }
-    }
-
     setSelectedPlayers(prev => [...prev, normalizedPlayer])
     return { success: true }
   }
 
   const removePlayer = async (playerId) => {
-    if (savedTeamId && teamPlayerRowIds[playerId]) {
-      try {
-        await axiosInstance.delete(
-          `/api/fantasy-team-players/${teamPlayerRowIds[playerId]}/`
-        )
-      } catch (error) {
-        return { success: false, error: 'Failed to remove player' }
-      }
-      setTeamPlayerRowIds(prev => {
-        const updated = { ...prev }
-        delete updated[playerId]
-        return updated
-      })
-    }
+    // Only update Local State (Draft Mode)
     setSelectedPlayers(prev => prev.filter(p => String(p.id) !== String(playerId)))
     if (String(captainId) === String(playerId)) setCaptainId(null)
     if (String(viceCaptainId) === String(playerId)) setViceCaptainId(null)
@@ -171,22 +142,7 @@ export function TeamProvider({ children }) {
     if (String(playerId) === String(viceCaptainId)) {
       return { success: false, error: 'A player cannot be both captain and vice-captain' }
     }
-    if (savedTeamId && teamPlayerRowIds[playerId]) {
-      try {
-        if (captainId && teamPlayerRowIds[captainId]) {
-          await axiosInstance.patch(
-            `/api/fantasy-team-players/${teamPlayerRowIds[captainId]}/`,
-            { is_captain: false }
-          )
-        }
-        await axiosInstance.patch(
-          `/api/fantasy-team-players/${teamPlayerRowIds[playerId]}/`,
-          { is_captain: true }
-        )
-      } catch (error) {
-        return { success: false, error: 'Failed to update captain' }
-      }
-    }
+    // Only update Local State
     setCaptainId(playerId)
     return { success: true }
   }
@@ -195,22 +151,7 @@ export function TeamProvider({ children }) {
     if (String(playerId) === String(captainId)) {
       return { success: false, error: 'A player cannot be both captain and vice-captain' }
     }
-    if (savedTeamId && teamPlayerRowIds[playerId]) {
-      try {
-        if (viceCaptainId && teamPlayerRowIds[viceCaptainId]) {
-          await axiosInstance.patch(
-            `/api/fantasy-team-players/${teamPlayerRowIds[viceCaptainId]}/`,
-            { is_vice_captain: false }
-          )
-        }
-        await axiosInstance.patch(
-          `/api/fantasy-team-players/${teamPlayerRowIds[playerId]}/`,
-          { is_vice_captain: true }
-        )
-      } catch (error) {
-        return { success: false, error: 'Failed to update vice-captain' }
-      }
-    }
+    // Only update Local State
     setViceCaptainId(playerId)
     return { success: true }
   }
@@ -218,35 +159,34 @@ export function TeamProvider({ children }) {
   const saveTeam = async () => {
     if (!match) return { success: false, error: 'Match data not loaded yet' }
     if (selectedPlayers.length < 11) return { success: false, error: 'Team is not complete yet' }
+    if (!captainId || !viceCaptainId) return { success: false, error: 'You must set a Captain and Vice Captain before saving.' }
 
     try {
       const profileRes = await axiosInstance.get('/api/users/me/')
       const teamName = profileRes.data.team_name
-      if (!teamName) {
-        return { success: false, error: 'Please set your team name in Settings first' }
-      }
+      if (!teamName) return { success: false, error: 'Please set your team name in Settings first' }
 
-      const teamRes = await axiosInstance.post(
-        '/api/fantasy-teams/',
-        { tournament: tournament.id, match: match.id, name: teamName, deadline: match.match_date }
-      )
-      const fantasyTeamId = teamRes.data.id
-      setSavedTeamId(fantasyTeamId)
+      let fantasyTeamId = savedTeamId
 
-      const rowIdMap = {}
-      for (const player of selectedPlayers) {
-        const playerRowRes = await axiosInstance.post(
-          '/api/fantasy-team-players/',
-          {
-            fantasy_team: fantasyTeamId,
-            player: player.id,
-            is_captain: String(player.id) === String(captainId),
-            is_vice_captain: String(player.id) === String(viceCaptainId),
-          }
+      // 1. If shell team doesn't exist, create it once
+      if (!fantasyTeamId) {
+        const teamRes = await axiosInstance.post(
+          '/api/fantasy-teams/',
+          { tournament: tournament.id, match: match.id, name: teamName, deadline: match.match_date }
         )
-        rowIdMap[player.id] = playerRowRes.data.id
+        fantasyTeamId = teamRes.data.id
+        setSavedTeamId(fantasyTeamId)
       }
-      setTeamPlayerRowIds(rowIdMap)
+
+      // 2. Submit the 11 players via the new bulk endpoint
+      const payload = {
+        players: selectedPlayers.map(p => p.id),
+        captain_id: captainId,
+        vice_captain_id: viceCaptainId
+      }
+
+      await axiosInstance.post(`/api/fantasy-teams/${fantasyTeamId}/update-roster/`, payload)
+      
       return { success: true, teamId: fantasyTeamId }
     } catch (error) {
       return { success: false, error: error.response?.data?.detail || 'Failed to save team' }
