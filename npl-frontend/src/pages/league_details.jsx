@@ -110,7 +110,10 @@ function LeagueDetails() {
 
     const isFull = league.member_count >= league.max_members
     const isOpen = league.status === 'open'
-    const sortedMembers = [...members].sort((a, b) => (b.points || 0) - (a.points || 0))
+    const sortedMembers = [...members].sort((a, b) => {
+        if (a.ranking && b.ranking) return a.ranking - b.ranking
+        return (b.points || 0) - (a.points || 0)
+    })
 
     return (
         <div className="min-h-screen bg-gray-100">

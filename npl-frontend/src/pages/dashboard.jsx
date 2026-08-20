@@ -13,7 +13,7 @@ export default function Dashboard() {
   // reads or JWT decoding here.
   const { isLoggedIn, userId } = useAuth()
 
-  const [upcomingMatch, setUpcomingMatch] = useState(null)
+  const [upcomingMatches, setUpcomingMatches] = useState([])
   const [pastMatches, setPastMatches] = useState([])
   const [topLeagues, setTopLeagues] = useState([])
   const [topPlayers, setTopPlayers] = useState([])
@@ -61,7 +61,7 @@ export default function Dashboard() {
         const eligible = allMatches
           .filter(m => now < new Date(m.match_date) - 30 * 60 * 1000)
           .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
-        setUpcomingMatch(eligible[0] || null)
+        setUpcomingMatches(eligible)
 
         const past = allMatches
           .filter(m => now >= new Date(m.match_date) - 30 * 60 * 1000)
@@ -146,6 +146,7 @@ export default function Dashboard() {
   // fantasyTeams, so it can't go stale the way a separately-set boolean can.
   // If your API returns `match` as a nested object instead of a raw id,
   // change the comparison below to `t.match.id === upcomingMatch.id`.
+  const upcomingMatch = upcomingMatches[0] || null
   const hasTeamForUpcomingMatch = upcomingMatch
     ? fantasyTeams.some(t => (t.match?.id || t.match) === upcomingMatch.id)
     : false
@@ -341,10 +342,12 @@ export default function Dashboard() {
           </div>
         )}
 
-        <h2 className="text-lg sm:text-xl font-bold mb-4">Upcoming Match</h2>
-        {upcomingMatch ? (
-          <div className="mb-8 sm:mb-10">
-            <MatchCard match={upcomingMatch} badge="Team Selection Open" />
+        <h2 className="text-lg sm:text-xl font-bold mb-4">Upcoming Matches</h2>
+        {upcomingMatches.length > 0 ? (
+          <div className="mb-8 sm:mb-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {upcomingMatches.map(m => (
+              <MatchCard key={m.id} match={m} badge="Team Selection Open" />
+            ))}
           </div>
         ) : (
           <p className="text-gray-500 mb-8 sm:mb-10 text-sm">No upcoming matches right now.</p>
