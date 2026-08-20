@@ -58,6 +58,8 @@ export default function Dashboard() {
 
         const now = new Date()
 
+        // Team selection is open until 30 minutes before kickoff — only
+        // matches strictly before that cutoff are "open" and shown here.
         const eligible = allMatches
           .filter(m => now < new Date(m.match_date) - 30 * 60 * 1000)
           .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
@@ -142,13 +144,18 @@ export default function Dashboard() {
       .catch(err => console.error('Error loading dashboard:', err))
   }, [isLoggedIn, userId])
 
+  // Shared helper — does a team exist for THIS specific match? Used both
+  // by the hero spotlight and by each individual match card, so a user
+  // with two open matches sees accurate saved/not-saved status per match
+  // instead of one status borrowed from whichever match loaded first.
+  const hasTeamForMatch = (matchId) =>
+    fantasyTeams.some(t => (t.match?.id || t.match) === matchId)
+
   // Derived, not stored — always reflects the *current* upcomingMatch and
   // fantasyTeams, so it can't go stale the way a separately-set boolean can.
-  // If your API returns `match` as a nested object instead of a raw id,
-  // change the comparison below to `t.match.id === upcomingMatch.id`.
   const upcomingMatch = upcomingMatches[0] || null
   const hasTeamForUpcomingMatch = upcomingMatch
-    ? fantasyTeams.some(t => (t.match?.id || t.match) === upcomingMatch.id)
+    ? hasTeamForMatch(upcomingMatch.id)
     : false
 
   // Does the upcoming match involve the user's favorite team?
@@ -164,9 +171,13 @@ export default function Dashboard() {
     </div>
   )
 
-  const MatchCard = ({ match, badge }) => {
+  const MatchCard = ({ match, badge, showTeamStatus }) => {
     const isFavoriteMatch = favoriteTeamId &&
       (match.home_team === favoriteTeamId || match.away_team === favoriteTeamId)
+
+    const teamSaved = showTeamStatus && isLoggedIn
+      ? hasTeamForMatch(match.id)
+      : null
 
     return (
       <Link
@@ -184,6 +195,17 @@ export default function Dashboard() {
           {isFavoriteMatch && (
             <span className="text-xs bg-yellow-100 text-yellow-700 font-semibold px-2 py-0.5 rounded-full">
               ★ Favorite Team
+            </span>
+          )}
+          {teamSaved !== null && (
+            <span
+              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                teamSaved
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-500'
+              }`}
+            >
+              {teamSaved ? '✓ Team Saved' : 'No Team Yet'}
             </span>
           )}
         </div>
@@ -346,7 +368,7 @@ export default function Dashboard() {
         {upcomingMatches.length > 0 ? (
           <div className="mb-8 sm:mb-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {upcomingMatches.map(m => (
-              <MatchCard key={m.id} match={m} badge="Team Selection Open" />
+              <MatchCard key={m.id} match={m} badge="Team Selection Open" showTeamStatus />
             ))}
           </div>
         ) : (
