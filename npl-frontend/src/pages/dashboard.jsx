@@ -8,9 +8,6 @@ import { fetchAllPages } from '../utilis/fetchAllPages'
 import { useAuth } from '../context/AuthContext'
 
 export default function Dashboard() {
-  // isLoggedIn/userId now come from AuthContext — the single source of
-  // truth that also drives ProtectedRoute. No more manual localStorage
-  // reads or JWT decoding here.
   const { isLoggedIn, userId } = useAuth()
 
   const [upcomingMatches, setUpcomingMatches] = useState([])
@@ -18,7 +15,7 @@ export default function Dashboard() {
   const [topLeagues, setTopLeagues] = useState([])
   const [topPlayers, setTopPlayers] = useState([])
   const [cricketTeams, setCricketTeams] = useState({})
-  const [fantasyTeams, setFantasyTeams] = useState([]) // raw list, used to derive hasTeam per-match
+  const [fantasyTeams, setFantasyTeams] = useState([]) 
   const [seasonPoints, setSeasonPoints] = useState(0)
   const [latestPoints, setLatestPoints] = useState(0)
   const [myLeagues, setMyLeagues] = useState([])
@@ -26,8 +23,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [matchesList, setMatchesList] = useState([])
 
-  // Favorites — used to highlight relevant content, pulled from the same
-  // /api/users/me/ call that checks whether the team-name modal is needed
   const [favoriteTeamId, setFavoriteTeamId] = useState(null)
   const [favoritePlayerIds, setFavoritePlayerIds] = useState([])
   const [showTeamNameModal, setShowTeamNameModal] = useState(false)
@@ -36,7 +31,6 @@ export default function Dashboard() {
   const BRAND = '#38003c'
 
   useEffect(() => {
-    // Public fetches — run for everyone, logged in or not
     Promise.all([
       axiosInstance.get('/api/matches/?ordering=match_date&page_size=50'),
       axiosInstance.get('/api/cricket-teams/'),
@@ -58,15 +52,15 @@ export default function Dashboard() {
 
         const now = new Date()
 
-        // Team selection is open until 30 minutes before kickoff — only
-        // matches strictly before that cutoff are "open" and shown here.
-        const eligible = allMatches
-          .filter(m => now < new Date(m.match_date) - 30 * 60 * 1000)
+        // Get upcoming future matches, sort chronologically, and take only the next 2
+        const upcoming = allMatches
+          .filter(m => new Date(m.match_date) > now)
           .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
-        setUpcomingMatches(eligible)
+          .slice(0, 2)
+        setUpcomingMatches(upcoming)
 
         const past = allMatches
-          .filter(m => now >= new Date(m.match_date) - 30 * 60 * 1000)
+          .filter(m => new Date(m.match_date) <= now)
           .sort((a, b) => new Date(b.match_date) - new Date(a.match_date))
           .slice(0, 3)
         setPastMatches(past)
@@ -79,10 +73,6 @@ export default function Dashboard() {
         setTopPlayers(players.slice(0, 5))
         setTopNews(news.slice(0, 3))
 
-        // Personal (protected) fetches — only run once we know the user
-        // is genuinely logged in, per AuthContext. axiosInstance already
-        // attaches the in-memory access token to these automatically via
-        // its request interceptor — no manual header/token handling needed.
         if (isLoggedIn) {
           axiosInstance.get('/api/users/me/')
             .then(res => {
@@ -122,8 +112,6 @@ export default function Dashboard() {
                 setLatestPoints(sortedByMatchDate[0].total_points || 0)
               }
 
-              // userId comes from AuthContext now, decoded once centrally
-              // instead of re-decoding the token here
               const myLeagueIds = members.map(m => m.league)
 
               axiosInstance.get('/api/leagues/')
@@ -144,21 +132,14 @@ export default function Dashboard() {
       .catch(err => console.error('Error loading dashboard:', err))
   }, [isLoggedIn, userId])
 
-  // Shared helper — does a team exist for THIS specific match? Used both
-  // by the hero spotlight and by each individual match card, so a user
-  // with two open matches sees accurate saved/not-saved status per match
-  // instead of one status borrowed from whichever match loaded first.
   const hasTeamForMatch = (matchId) =>
     fantasyTeams.some(t => (t.match?.id || t.match) === matchId)
 
-  // Derived, not stored — always reflects the *current* upcomingMatch and
-  // fantasyTeams, so it can't go stale the way a separately-set boolean can.
   const upcomingMatch = upcomingMatches[0] || null
   const hasTeamForUpcomingMatch = upcomingMatch
     ? hasTeamForMatch(upcomingMatch.id)
     : false
 
-  // Does the upcoming match involve the user's favorite team?
   const upcomingMatchIsFavorite = upcomingMatch && favoriteTeamId
     ? upcomingMatch.home_team === favoriteTeamId || upcomingMatch.away_team === favoriteTeamId
     : false
@@ -367,9 +348,21 @@ export default function Dashboard() {
         <h2 className="text-lg sm:text-xl font-bold mb-4">Upcoming Matches</h2>
         {upcomingMatches.length > 0 ? (
           <div className="mb-8 sm:mb-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {upcomingMatches.map(m => (
-              <MatchCard key={m.id} match={m} badge="Team Selection Open" showTeamStatus />
-            ))}
+            {upcomingMatches.map(m => {
+              // Check if team selection is still buildable (30 mins before kickoff)
+              const isBuildable = m.is_buildable !== undefined
+                ? m.is_buildable
+                : (new Date() < new Date(m.match_date) - 30 * 60 * 1000);
+
+              return (
+                <MatchCard
+                  key={m.id}
+                  match={m}
+                  badge={isBuildable ? "Team Selection Open" : null}
+                  showTeamStatus={isBuildable}
+                />
+              )
+            })}
           </div>
         ) : (
           <p className="text-gray-500 mb-8 sm:mb-10 text-sm">No upcoming matches right now.</p>

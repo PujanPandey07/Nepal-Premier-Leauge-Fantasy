@@ -110,10 +110,9 @@ function LeagueDetails() {
 
     const isFull = league.member_count >= league.max_members
     const isOpen = league.status === 'open'
-    const sortedMembers = [...members].sort((a, b) => {
-        if (a.ranking && b.ranking) return a.ranking - b.ranking
-        return (b.points || 0) - (a.points || 0)
-    })
+    
+    // Sort members strictly by points in descending order
+    const sortedMembers = [...members].sort((a, b) => (b.points || 0) - (a.points || 0))
 
     return (
         <div className="min-h-screen bg-gray-100">
@@ -229,7 +228,8 @@ function LeagueDetails() {
                                 const name = member.user_name || 'Unknown'
                                 const teamName = member.team_name || ''
                                 const displayName = teamName || name
-                                const rank = member.ranking || index + 1
+                                // Derive rank directly from sorted position
+                                const rank = index + 1
                                 const isTopThree = rank <= 3
 
                                 return (
