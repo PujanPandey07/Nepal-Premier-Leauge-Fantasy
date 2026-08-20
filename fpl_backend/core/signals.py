@@ -59,7 +59,7 @@ def calculate_fantasy_points(sender, instance, **kwargs):
     point_per_6 = 5
     if instance.strike_rate > 200:
         points += 10
-    if instance.economy_rate < 6:
+    if instance.overs_bowled > 0 and instance.economy_rate < 6:
         points += 10
     if instance.runs_scored >= 50:
         points += 20

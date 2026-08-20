@@ -110,7 +110,7 @@ class PlayerView(CacheInvalidateMixin, viewsets.ModelViewSet):
             total_runs=Sum('runs_scored'),
             total_wickets=Sum('wickets_taken'),
             total_fantasy_points=Sum('fantasy_points'),
-            matches_played=Count('id'),
+            matches_played=Count('match', distinct=True),
         )
 
         return Response({
